@@ -10,15 +10,15 @@ substitutions:
   rotation_offset: "0"
 
 font:
-  - file: { type: gfonts, family: Dosis }
+  - file: { type: gfonts, family: Dosis, weight: 700 }
     id: font_dosis_20
     size: 20
     glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
-  - file: { type: gfonts, family: Dosis }
+  - file: { type: gfonts, family: Dosis, weight: 700 }
     id: font_dosis_32
     size: 32
     glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
-  - file: { type: gfonts, family: Dosis }
+  - file: { type: gfonts, family: Dosis, weight: 700 }
     id: font_dosis_40
     size: 40
     glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
@@ -128,7 +128,15 @@ sensor:
     entity_id: sensor.${bambulab_printer}_ams_temperature
     internal: true
 
+time:
+  - platform: homeassistant
+    id: ha_time
+
 text_sensor:
+  - platform: homeassistant
+    id: start_time_iso
+    entity_id: sensor.${bambulab_printer}_start_time
+    internal: true
   - platform: homeassistant
     id: print_status
     entity_id: sensor.${bambulab_printer}_print_status
@@ -159,7 +167,17 @@ text_sensor:
       then:
         - lvgl.label.update:
             id: ams_slot_1_label
-            text: !lambda return x.substr(0, 6);
+            text: !lambda |-
+              std::string v = x;
+              if (v.rfind("Bambu ", 0) == 0) v.erase(0, 6);
+              std::string out; int lines = 1; int col = 0;
+              for (char ch : v) {
+                if (ch == ' ') {
+                  if (lines >= 3) break;
+                  out += '\n'; lines++; col = 0;
+                } else if (col < 9) { out += ch; col++; }
+              }
+              return out;
   - platform: homeassistant
     id: ams_tray_2
     entity_id: sensor.${bambulab_printer}_ams_tray_2
@@ -168,7 +186,17 @@ text_sensor:
       then:
         - lvgl.label.update:
             id: ams_slot_2_label
-            text: !lambda return x.substr(0, 6);
+            text: !lambda |-
+              std::string v = x;
+              if (v.rfind("Bambu ", 0) == 0) v.erase(0, 6);
+              std::string out; int lines = 1; int col = 0;
+              for (char ch : v) {
+                if (ch == ' ') {
+                  if (lines >= 3) break;
+                  out += '\n'; lines++; col = 0;
+                } else if (col < 9) { out += ch; col++; }
+              }
+              return out;
   - platform: homeassistant
     id: ams_tray_3
     entity_id: sensor.${bambulab_printer}_ams_tray_3
@@ -177,7 +205,17 @@ text_sensor:
       then:
         - lvgl.label.update:
             id: ams_slot_3_label
-            text: !lambda return x.substr(0, 6);
+            text: !lambda |-
+              std::string v = x;
+              if (v.rfind("Bambu ", 0) == 0) v.erase(0, 6);
+              std::string out; int lines = 1; int col = 0;
+              for (char ch : v) {
+                if (ch == ' ') {
+                  if (lines >= 3) break;
+                  out += '\n'; lines++; col = 0;
+                } else if (col < 9) { out += ch; col++; }
+              }
+              return out;
   - platform: homeassistant
     id: ams_tray_4
     entity_id: sensor.${bambulab_printer}_ams_tray_4
@@ -186,7 +224,17 @@ text_sensor:
       then:
         - lvgl.label.update:
             id: ams_slot_4_label
-            text: !lambda return x.substr(0, 6);
+            text: !lambda |-
+              std::string v = x;
+              if (v.rfind("Bambu ", 0) == 0) v.erase(0, 6);
+              std::string out; int lines = 1; int col = 0;
+              for (char ch : v) {
+                if (ch == ' ') {
+                  if (lines >= 3) break;
+                  out += '\n'; lines++; col = 0;
+                } else if (col < 9) { out += ch; col++; }
+              }
+              return out;
 
   - platform: homeassistant
     id: ams_tray_1_color
@@ -400,7 +448,8 @@ lvgl:
                   x: 6%
                   y: 36%
                   text: "--m"
-                  text_font: font_dosis_40
+                  text_font: font_dosis_32
+                  text_align: CENTER
                   text_color: 0x87CEEB
 
     - id: page_ams
@@ -665,7 +714,14 @@ interval:
                               stage.find("filament_loading") != std::string::npos ||
                               stage.find("filament_unloading") != std::string::npos;
           id(print_active) = !done && !failed && (running_like || stage_active || (p > 0 && p < 100));
-          bool should_dim = !id(print_active);
+          static uint32_t inactive_since = 0;
+          bool should_dim = false;
+          if (id(print_active)) {
+            inactive_since = 0;
+          } else {
+            if (inactive_since == 0) inactive_since = millis();
+            should_dim = (millis() - inactive_since) >= 5UL * 60UL * 1000UL;
+          }
           if (id(display_dimmed) != should_dim) id(display_dimmed) = should_dim;
 
           uint32_t target = 0x00FF00;
@@ -726,14 +782,41 @@ interval:
       - lvgl.label.update:
           id: remaining_label
           text: !lambda |-
+            {
+              std::string ps = id(print_status).has_state() ? id(print_status).state : "";
+              for (auto &c : ps) c = (char) tolower((unsigned char) c);
+              if (ps.find("finish") != std::string::npos) return std::string("Done");
+            }
+            if (!id(print_active)) return std::string("--");
             if (!id(remaining_time).has_state()) return std::string("--m");
-            int minutes = (int) id(remaining_time).state;
-            if (minutes < 0) minutes = 0;
-            int h = minutes / 60;
-            int m = minutes % 60;
-            char buf[20];
-            if (h > 0) snprintf(buf, sizeof(buf), "%dh %dm", h, m);
-            else snprintf(buf, sizeof(buf), "%dm", m);
+            int rem = (int) id(remaining_time).state;
+            if (rem < 0) rem = 0;
+            char buf[40];
+            auto now = id(ha_time).now();
+            if (!now.is_valid()) {
+              snprintf(buf, sizeof(buf), "%dm", rem);
+              return std::string(buf);
+            }
+            auto eta = ESPTime::from_epoch_local(now.timestamp + (time_t) rem * 60);
+            int elapsed = -1;
+            if (id(start_time_iso).has_state()) {
+              int Y, Mo, D, H, Mi, S;
+              if (sscanf(id(start_time_iso).state.c_str(), "%d-%d-%dT%d:%d:%d", &Y, &Mo, &D, &H, &Mi, &S) == 6) {
+                int y = Y - (Mo <= 2);
+                int era = (y >= 0 ? y : y - 399) / 400;
+                unsigned yoe = (unsigned) (y - era * 400);
+                unsigned doy = (153u * (Mo + (Mo > 2 ? -3 : 9)) + 2) / 5 + D - 1;
+                unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                time_t start_utc = ((time_t) era * 146097 + (time_t) doe - 719468) * 86400
+                                   + H * 3600 + Mi * 60 + S;
+                elapsed = (int) ((now.timestamp - start_utc) / 60);
+                if (elapsed < 0) elapsed = 0;
+              }
+            }
+            if (elapsed >= 0)
+              snprintf(buf, sizeof(buf), "%d/%dm\nETA %02d:%02d", elapsed, elapsed + rem, eta.hour, eta.minute);
+            else
+              snprintf(buf, sizeof(buf), "%dm\nETA %02d:%02d", rem, eta.hour, eta.minute);
             return std::string(buf);
       - lvgl.label.update:
           id: layer_label
@@ -771,8 +854,8 @@ interval:
           id: ams_temp_label
           text: !lambda |-
             char buf[20];
-            if (id(ams_temp).has_state()) snprintf(buf, sizeof(buf), "T %dC", (int) id(ams_temp).state);
-            else snprintf(buf, sizeof(buf), "T --C");
+            if (id(ams_temp).has_state()) snprintf(buf, sizeof(buf), "T %d°C", (int) id(ams_temp).state);
+            else snprintf(buf, sizeof(buf), "T --°C");
             return std::string(buf);
 
   - interval: 200ms
