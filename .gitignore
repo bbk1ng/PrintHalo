@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# orch runtime state — keep the config, ignore the rest
+.orch/*
+!.orch/orch.yml
+
+# session/local scratch
+.remember/

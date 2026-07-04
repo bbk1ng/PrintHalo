@@ -1,0 +1,5 @@
+"""Sample module. Replace with real code."""
+
+
+def add(a: int, b: int) -> int:
+    return a + b

@@ -1,0 +1,39 @@
+# agent-orch config — all keys optional. Commented keys show the default.
+
+# === Agents ===
+# Rotation pool: picks author/reviewer when no explicit roles are set below.
+# Built-in: claude, codex. Local llm models (run via ccr): qwen3-coder-30b,
+# deepseek-coder-v2-lite, glm-4.5-air. Append a known agent with `orch agent add <name>`.
+agents: [claude, codex]   # default: [claude, codex]
+
+# === Roles (optional; set both sides or neither) ===
+# A role is a spec "<agent> [model] [effort]":
+#   agent  — required; one of the agents above
+#   model  — optional model id, may carry a subversion (e.g. claude-opus-4-8, gpt-5.1)
+#   effort — optional reasoning effort (e.g. low | medium | high)
+# Unset → the agents pool rotates the author; the next agent reviews.
+# author: claude claude-opus-4-8 high      # single author spec
+# reviewer: codex gpt-5.1           # single reviewer spec
+# authors: [claude claude-opus-4-8 high, codex]   # each writes its own branch
+# reviewers: [claude, codex high]          # all audit each branch, except its author
+
+# === Cycle ===
+test: python3 -m unittest discover -s tests   # explicit test-gate command for this template
+reviseCap: 3              # max revise rounds before escalation (positive integer); default: 3
+merge: no-ff              # merge into main: ff-only | no-ff; default: no-ff (concurrent disjoint cycles both land; ff-only = linear but extra cycles fall back to PR)
+concurrency: 4            # max concurrent orch cycles in this repo dir; over this a cycle exits; default: 4
+
+# === Scope gate (optional) ===
+scope:
+  maxLines: 0             # 0 = disabled; >0 escalates author commits over this many changed lines
+  ignore: ["*.lock", "dist/**", "*.snap"]   # globs excluded from the line count
+
+# === GitHub PR bridge (orch pr <n>) ===
+github:
+  mergeMethod: squash     # gh pr merge strategy: squash | merge | rebase; default: squash
+
+# === Auto docs-update after a real merge (optional) ===
+docs:
+  autoUpdate: false       # true = spawn a docs-update task after a merge; default: false
+  prompt: update documentation to reflect the latest merged changes
+  paths: ["*.md", "docs/**", "**/*.md"]   # docs-only globs (loop guard)
