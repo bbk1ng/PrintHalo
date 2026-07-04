@@ -4,8 +4,34 @@ substitutions:
   display_width: "${screen_size}"
   display_height: "${screen_size}"
   ring_size: "260"
-  ring_width: "20"
+  ring_width: "24"
   brightness_default: "70"
+  # degrees added to IMU-derived rotation so USB-C-down displays upright
+  rotation_offset: "0"
+
+font:
+  - file: { type: gfonts, family: Dosis }
+    id: font_dosis_20
+    size: 20
+    glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
+  - file: { type: gfonts, family: Dosis }
+    id: font_dosis_32
+    size: 32
+    glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
+  - file: { type: gfonts, family: Dosis }
+    id: font_dosis_40
+    size: 40
+    glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
+  - file: fonts/materialdesignicons-webfont.ttf
+    id: font_mdi_40
+    size: 40
+    bpp: 4
+    glyphs: ["\U000F144E", "\U000F0E5B", "\U000F185B"]
+
+image:
+  - file: images/bambuicon.png
+    id: img_bambu_logo
+    type: RGB565
 
 globals:
   - id: configured_brightness
@@ -46,7 +72,7 @@ script:
     then:
       - lambda: |-
           float level = id(configured_brightness) / 100.0f;
-          if (id(display_dimmed)) level *= 0.10f;
+          if (id(display_dimmed)) level *= 0.50f;
           if (level < 0.01f) level = 0.01f;
           if (level > 1.0f) level = 1.0f;
           id(round_display).set_brightness((uint8_t) (level * 255));
@@ -276,62 +302,102 @@ lvgl:
                   min_value: 0
                   max_value: 100
                   value: 0
-                  start_angle: 135
-                  end_angle: 45
+                  rotation: 270
+                  start_angle: 0
+                  end_angle: 360
                   arc_width: ${ring_width}
-                  arc_color: 0x242424
+                  arc_color: 0x101010
                   arc_rounded: true
                   adjustable: false
                   bg_opa: TRANSP
                   border_opa: TRANSP
+                  pad_all: 0
                   indicator:
                     arc_width: ${ring_width}
                     arc_color: 0x666666
                     arc_rounded: true
+              - image:
+                  id: bambu_logo
+                  src: img_bambu_logo
+                  align: CENTER
+                  y: -2%
+                  antialias: true
               - label:
                   id: progress_label
                   align: CENTER
-                  y: -18%
+                  y: -40%
                   text: "--%"
+                  text_font: font_dosis_40
                   text_color: 0xFFFFFF
               - label:
                   id: status_label
                   align: CENTER
-                  y: -5%
+                  y: -18%
                   text: "idle"
+                  text_font: font_dosis_32
                   text_color: 0xAAAAAA
               - label:
                   id: stage_label
                   align: CENTER
                   y: 8%
+                  hidden: true
                   text: "waiting"
                   text_color: 0xDDDDDD
               - label:
-                  id: layer_label
+                  id: nozzle_icon
                   align: CENTER
-                  y: 21%
-                  text: "-- / --"
-                  text_color: 0xDDDDDD
-              - label:
-                  id: remaining_label
-                  align: CENTER
-                  y: 33%
-                  text: "--m"
-                  text_color: 0x87CEEB
+                  x: -39%
+                  y: -2%
+                  text: "\U000F0E5B"
+                  text_font: font_mdi_40
+                  text_color: 0xFFFFFF
               - label:
                   id: nozzle_label
                   align: CENTER
-                  x: -22%
-                  y: 43%
-                  text: "Noz --C"
+                  x: -28%
+                  y: -2%
+                  text: "--°C"
+                  text_font: font_dosis_32
+                  text_color: 0xFFFFFF
+              - label:
+                  id: bed_icon
+                  align: CENTER
+                  x: 24%
+                  y: -2%
+                  text: "\U000F185B"
+                  text_font: font_mdi_40
                   text_color: 0xFFFFFF
               - label:
                   id: bed_label
                   align: CENTER
-                  x: 22%
-                  y: 43%
-                  text: "Bed --C"
+                  x: 34%
+                  y: -2%
+                  text: "--°C"
+                  text_font: font_dosis_32
                   text_color: 0xFFFFFF
+              - label:
+                  id: layer_label
+                  align: CENTER
+                  y: 15%
+                  text: "Layer: -- / --"
+                  text_font: font_dosis_32
+                  text_color: 0xDDDDDD
+              - label:
+                  id: remaining_icon
+                  align: CENTER
+                  x: -7%
+                  y: 36%
+                  text: "\U000F144E"
+                  text_font: font_mdi_40
+                  text_color: 0x87CEEB
+              - label:
+                  id: remaining_label
+                  align: CENTER
+                  x: 6%
+                  y: 36%
+                  text: "--m"
+                  text_font: font_dosis_40
+                  text_color: 0x87CEEB
 
     - id: page_ams
       bg_color: 0x000000
@@ -368,9 +434,11 @@ lvgl:
                   align: CENTER
                   y: -37%
                   text: "AMS"
+                  text_font: font_dosis_40
                   text_color: 0xFFFFFF
               - label:
                   id: ams_humidity_label
+                  text_font: font_dosis_32
                   align: CENTER
                   x: -24%
                   y: -24%
@@ -378,6 +446,7 @@ lvgl:
                   text_color: 0xDDDDDD
               - label:
                   id: ams_temp_label
+                  text_font: font_dosis_32
                   align: CENTER
                   x: 24%
                   y: -24%
@@ -400,6 +469,7 @@ lvgl:
                     - label:
                         id: ams_slot_1_label
                         align: CENTER
+                        text_font: font_dosis_20
                         text: "--"
                         text_color: 0xFFFFFF
                         text_align: CENTER
@@ -420,6 +490,7 @@ lvgl:
                     - label:
                         id: ams_slot_2_label
                         align: CENTER
+                        text_font: font_dosis_20
                         text: "--"
                         text_color: 0xFFFFFF
                         text_align: CENTER
@@ -440,6 +511,7 @@ lvgl:
                     - label:
                         id: ams_slot_3_label
                         align: CENTER
+                        text_font: font_dosis_20
                         text: "--"
                         text_color: 0xFFFFFF
                         text_align: CENTER
@@ -460,6 +532,7 @@ lvgl:
                     - label:
                         id: ams_slot_4_label
                         align: CENTER
+                        text_font: font_dosis_20
                         text: "--"
                         text_color: 0xFFFFFF
                         text_align: CENTER
@@ -630,6 +703,16 @@ interval:
             if (ps.find("running") != std::string::npos || ps.find("printing") != std::string::npos) return std::string("printing");
             if (ps.find("finish") != std::string::npos) return std::string("finished");
             return ps.empty() ? std::string("idle") : ps.substr(0, 18);
+      - lambda: |-
+          auto lower = [](std::string s) { for (auto &c : s) c = (char)tolower((unsigned char)c); return s; };
+          std::string ps = id(print_status).has_state() ? lower(id(print_status).state) : "";
+          uint32_t col = 0xAAAAAA;
+          if (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) col = 0xFF3333;
+          else if (ps.find("pause") != std::string::npos) col = 0xFFA500;
+          else if (ps.find("prepare") != std::string::npos) col = 0xFFD54F;
+          else if (ps.find("running") != std::string::npos || ps.find("printing") != std::string::npos) col = 0xFFFFFF;
+          else if (ps.find("finish") != std::string::npos) col = 0x00BFFF;
+          lv_obj_set_style_text_color(id(status_label), lv_color_hex(col), LV_PART_MAIN);
       - lvgl.label.update:
           id: stage_label
           text: !lambda |-
@@ -654,24 +737,24 @@ interval:
             int cur = id(current_layer).has_state() ? (int) id(current_layer).state : -1;
             int tot = id(total_layer).has_state() ? (int) id(total_layer).state : -1;
             char buf[24];
-            if (cur >= 0 && tot >= 0) snprintf(buf, sizeof(buf), "%d / %d", cur, tot);
-            else if (cur >= 0) snprintf(buf, sizeof(buf), "%d / --", cur);
-            else if (tot >= 0) snprintf(buf, sizeof(buf), "-- / %d", tot);
-            else snprintf(buf, sizeof(buf), "-- / --");
+            if (cur >= 0 && tot >= 0) snprintf(buf, sizeof(buf), "Layer: %d / %d", cur, tot);
+            else if (cur >= 0) snprintf(buf, sizeof(buf), "Layer: %d / --", cur);
+            else if (tot >= 0) snprintf(buf, sizeof(buf), "Layer: -- / %d", tot);
+            else snprintf(buf, sizeof(buf), "Layer: -- / --");
             return std::string(buf);
       - lvgl.label.update:
           id: nozzle_label
           text: !lambda |-
             char buf[20];
-            if (id(nozzle_temp).has_state()) snprintf(buf, sizeof(buf), "Noz %dC", (int) id(nozzle_temp).state);
-            else snprintf(buf, sizeof(buf), "Noz --C");
+            if (id(nozzle_temp).has_state()) snprintf(buf, sizeof(buf), "%d°C", (int) id(nozzle_temp).state);
+            else snprintf(buf, sizeof(buf), "--°C");
             return std::string(buf);
       - lvgl.label.update:
           id: bed_label
           text: !lambda |-
             char buf[20];
-            if (id(bed_temp).has_state()) snprintf(buf, sizeof(buf), "Bed %dC", (int) id(bed_temp).state);
-            else snprintf(buf, sizeof(buf), "Bed --C");
+            if (id(bed_temp).has_state()) snprintf(buf, sizeof(buf), "%d°C", (int) id(bed_temp).state);
+            else snprintf(buf, sizeof(buf), "--°C");
             return std::string(buf);
       - lvgl.label.update:
           id: ams_humidity_label
@@ -716,8 +799,8 @@ interval:
           } else {
             candidate = ax >= 0 ? 90 : 270;
           }
-          // calibration: raw axis mapping reads 90 short of USB-C-down = 0
-          candidate = (candidate + 90) % 360;
+          // calibration: offset so USB-C-down reads as rotation 0 on this board
+          candidate = (candidate + ${rotation_offset}) % 360;
 
           static int pending = -1;
           static uint32_t pending_since = 0;

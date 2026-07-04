@@ -56,7 +56,7 @@ class DashboardSpecTest(unittest.TestCase):
     def test_dimming_is_multiplier_on_configured_brightness(self):
         self.assertIn("id: configured_brightness", self.package)
         self.assertIn("id: brightness_control", self.package)
-        self.assertIn("level *= 0.10f", self.package)
+        self.assertIn("level *= 0.50f", self.package)
         self.assertIn("id(display_dimmed) = should_dim", self.package)
         self.assertIn("id(print_active)", self.package)
 

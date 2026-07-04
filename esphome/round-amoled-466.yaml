@@ -5,8 +5,8 @@ substitutions:
   screen_size: "466"
   display_width: "466"
   display_height: "466"
-  ring_size: "386"
-  ring_width: "28"
+  ring_size: "466"
+  ring_width: "24"
   brightness_default: "70"
 
 esphome:
@@ -67,11 +67,13 @@ i2c_device:
     address: 0x6B
 
 touchscreen:
+  # FT3168 at default 0x38; absent from boot I2C scan because the scan runs
+  # before GPIO42 (AMOLED_EN) powers its rail. 0x51 on the bus is the RTC.
   - platform: ft63x6
     id: touch_screen
     i2c_id: i2c_bus
     display: round_display
-    update_interval: 30ms
+    update_interval: 50ms
 
 display:
   - platform: mipi_spi
