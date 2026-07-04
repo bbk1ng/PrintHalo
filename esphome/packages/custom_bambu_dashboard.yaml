@@ -4,8 +4,34 @@ substitutions:
   display_width: "${screen_size}"
   display_height: "${screen_size}"
   ring_size: "260"
-  ring_width: "20"
+  ring_width: "24"
   brightness_default: "70"
+  # degrees added to IMU-derived rotation so USB-C-down displays upright
+  rotation_offset: "0"
+
+font:
+  - file: { type: gfonts, family: Dosis, weight: 700 }
+    id: font_dosis_20
+    size: 20
+    glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
+  - file: { type: gfonts, family: Dosis, weight: 700 }
+    id: font_dosis_32
+    size: 32
+    glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
+  - file: { type: gfonts, family: Dosis, weight: 700 }
+    id: font_dosis_40
+    size: 40
+    glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
+  - file: fonts/materialdesignicons-webfont.ttf
+    id: font_mdi_40
+    size: 40
+    bpp: 4
+    glyphs: ["\U000F144E", "\U000F0E5B", "\U000F185B"]
+
+image:
+  - file: images/bambuicon.png
+    id: img_bambu_logo
+    type: RGB565
 
 globals:
   - id: configured_brightness
@@ -44,14 +70,12 @@ globals:
 script:
   - id: apply_backlight
     then:
-      - light.turn_on:
-          id: display_backlight
-          brightness: !lambda |-
-            float level = id(configured_brightness) / 100.0f;
-            if (id(display_dimmed)) level *= 0.10f;
-            if (level < 0.01f) level = 0.01f;
-            if (level > 1.0f) level = 1.0f;
-            return level;
+      - lambda: |-
+          float level = id(configured_brightness) / 100.0f;
+          if (id(display_dimmed)) level *= 0.50f;
+          if (level < 0.01f) level = 0.01f;
+          if (level > 1.0f) level = 1.0f;
+          id(round_display).set_brightness((uint8_t) (level * 255));
 
 number:
   - platform: template
@@ -97,14 +121,22 @@ sensor:
     internal: true
   - platform: homeassistant
     id: ams_humidity
-    entity_id: sensor.${bambulab_printer}_ams_1_humidity
+    entity_id: sensor.${bambulab_printer}_ams_humidity
     internal: true
   - platform: homeassistant
     id: ams_temp
-    entity_id: sensor.${bambulab_printer}_ams_1_temperature
+    entity_id: sensor.${bambulab_printer}_ams_temperature
     internal: true
 
+time:
+  - platform: homeassistant
+    id: ha_time
+
 text_sensor:
+  - platform: homeassistant
+    id: start_time_iso
+    entity_id: sensor.${bambulab_printer}_start_time
+    internal: true
   - platform: homeassistant
     id: print_status
     entity_id: sensor.${bambulab_printer}_print_status
@@ -129,44 +161,84 @@ text_sensor:
 
   - platform: homeassistant
     id: ams_tray_1
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_1
+    entity_id: sensor.${bambulab_printer}_ams_tray_1
     internal: true
     on_value:
       then:
         - lvgl.label.update:
             id: ams_slot_1_label
-            text: !lambda return x.substr(0, 6);
+            text: !lambda |-
+              std::string v = x;
+              if (v.rfind("Bambu ", 0) == 0) v.erase(0, 6);
+              std::string out; int lines = 1; int col = 0;
+              for (char ch : v) {
+                if (ch == ' ') {
+                  if (lines >= 3) break;
+                  out += '\n'; lines++; col = 0;
+                } else if (col < 9) { out += ch; col++; }
+              }
+              return out;
   - platform: homeassistant
     id: ams_tray_2
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_2
+    entity_id: sensor.${bambulab_printer}_ams_tray_2
     internal: true
     on_value:
       then:
         - lvgl.label.update:
             id: ams_slot_2_label
-            text: !lambda return x.substr(0, 6);
+            text: !lambda |-
+              std::string v = x;
+              if (v.rfind("Bambu ", 0) == 0) v.erase(0, 6);
+              std::string out; int lines = 1; int col = 0;
+              for (char ch : v) {
+                if (ch == ' ') {
+                  if (lines >= 3) break;
+                  out += '\n'; lines++; col = 0;
+                } else if (col < 9) { out += ch; col++; }
+              }
+              return out;
   - platform: homeassistant
     id: ams_tray_3
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_3
+    entity_id: sensor.${bambulab_printer}_ams_tray_3
     internal: true
     on_value:
       then:
         - lvgl.label.update:
             id: ams_slot_3_label
-            text: !lambda return x.substr(0, 6);
+            text: !lambda |-
+              std::string v = x;
+              if (v.rfind("Bambu ", 0) == 0) v.erase(0, 6);
+              std::string out; int lines = 1; int col = 0;
+              for (char ch : v) {
+                if (ch == ' ') {
+                  if (lines >= 3) break;
+                  out += '\n'; lines++; col = 0;
+                } else if (col < 9) { out += ch; col++; }
+              }
+              return out;
   - platform: homeassistant
     id: ams_tray_4
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_4
+    entity_id: sensor.${bambulab_printer}_ams_tray_4
     internal: true
     on_value:
       then:
         - lvgl.label.update:
             id: ams_slot_4_label
-            text: !lambda return x.substr(0, 6);
+            text: !lambda |-
+              std::string v = x;
+              if (v.rfind("Bambu ", 0) == 0) v.erase(0, 6);
+              std::string out; int lines = 1; int col = 0;
+              for (char ch : v) {
+                if (ch == ' ') {
+                  if (lines >= 3) break;
+                  out += '\n'; lines++; col = 0;
+                } else if (col < 9) { out += ch; col++; }
+              }
+              return out;
 
   - platform: homeassistant
     id: ams_tray_1_color
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_1
+    entity_id: sensor.${bambulab_printer}_ams_tray_1
     attribute: color
     internal: true
     on_value:
@@ -175,6 +247,7 @@ text_sensor:
             std::string c = x;
             if (!c.empty() && c[0] == '#') c.erase(0, 1);
             if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            if (c.size() == 8) c.erase(6);  // strip RGBA alpha suffix
             uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
             uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
             uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
@@ -182,7 +255,7 @@ text_sensor:
             lv_obj_set_style_text_color(id(ams_slot_1_label), lv_color_hex(text), LV_PART_MAIN);
   - platform: homeassistant
     id: ams_tray_2_color
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_2
+    entity_id: sensor.${bambulab_printer}_ams_tray_2
     attribute: color
     internal: true
     on_value:
@@ -191,6 +264,7 @@ text_sensor:
             std::string c = x;
             if (!c.empty() && c[0] == '#') c.erase(0, 1);
             if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            if (c.size() == 8) c.erase(6);  // strip RGBA alpha suffix
             uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
             uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
             uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
@@ -198,7 +272,7 @@ text_sensor:
             lv_obj_set_style_text_color(id(ams_slot_2_label), lv_color_hex(text), LV_PART_MAIN);
   - platform: homeassistant
     id: ams_tray_3_color
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_3
+    entity_id: sensor.${bambulab_printer}_ams_tray_3
     attribute: color
     internal: true
     on_value:
@@ -207,6 +281,7 @@ text_sensor:
             std::string c = x;
             if (!c.empty() && c[0] == '#') c.erase(0, 1);
             if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            if (c.size() == 8) c.erase(6);  // strip RGBA alpha suffix
             uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
             uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
             uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
@@ -214,7 +289,7 @@ text_sensor:
             lv_obj_set_style_text_color(id(ams_slot_3_label), lv_color_hex(text), LV_PART_MAIN);
   - platform: homeassistant
     id: ams_tray_4_color
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_4
+    entity_id: sensor.${bambulab_printer}_ams_tray_4
     attribute: color
     internal: true
     on_value:
@@ -223,6 +298,7 @@ text_sensor:
             std::string c = x;
             if (!c.empty() && c[0] == '#') c.erase(0, 1);
             if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            if (c.size() == 8) c.erase(6);  // strip RGBA alpha suffix
             uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
             uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
             uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
@@ -278,62 +354,103 @@ lvgl:
                   min_value: 0
                   max_value: 100
                   value: 0
-                  start_angle: 135
-                  end_angle: 45
+                  rotation: 270
+                  start_angle: 0
+                  end_angle: 360
                   arc_width: ${ring_width}
-                  arc_color: 0x242424
+                  arc_color: 0x101010
                   arc_rounded: true
                   adjustable: false
                   bg_opa: TRANSP
                   border_opa: TRANSP
+                  pad_all: 0
                   indicator:
                     arc_width: ${ring_width}
                     arc_color: 0x666666
                     arc_rounded: true
+              - image:
+                  id: bambu_logo
+                  src: img_bambu_logo
+                  align: CENTER
+                  y: -2%
+                  antialias: true
               - label:
                   id: progress_label
                   align: CENTER
-                  y: -18%
+                  y: -40%
                   text: "--%"
+                  text_font: font_dosis_40
                   text_color: 0xFFFFFF
               - label:
                   id: status_label
                   align: CENTER
-                  y: -5%
+                  y: -18%
                   text: "idle"
+                  text_font: font_dosis_32
                   text_color: 0xAAAAAA
               - label:
                   id: stage_label
                   align: CENTER
                   y: 8%
+                  hidden: true
                   text: "waiting"
                   text_color: 0xDDDDDD
               - label:
-                  id: layer_label
+                  id: nozzle_icon
                   align: CENTER
-                  y: 21%
-                  text: "-- / --"
-                  text_color: 0xDDDDDD
-              - label:
-                  id: remaining_label
-                  align: CENTER
-                  y: 33%
-                  text: "--m"
-                  text_color: 0x87CEEB
+                  x: -39%
+                  y: -2%
+                  text: "\U000F0E5B"
+                  text_font: font_mdi_40
+                  text_color: 0xFFFFFF
               - label:
                   id: nozzle_label
                   align: CENTER
-                  x: -22%
-                  y: 43%
-                  text: "Noz --C"
+                  x: -28%
+                  y: -2%
+                  text: "--°C"
+                  text_font: font_dosis_32
+                  text_color: 0xFFFFFF
+              - label:
+                  id: bed_icon
+                  align: CENTER
+                  x: 24%
+                  y: -2%
+                  text: "\U000F185B"
+                  text_font: font_mdi_40
                   text_color: 0xFFFFFF
               - label:
                   id: bed_label
                   align: CENTER
-                  x: 22%
-                  y: 43%
-                  text: "Bed --C"
+                  x: 34%
+                  y: -2%
+                  text: "--°C"
+                  text_font: font_dosis_32
                   text_color: 0xFFFFFF
+              - label:
+                  id: layer_label
+                  align: CENTER
+                  y: 15%
+                  text: "Layer: -- / --"
+                  text_font: font_dosis_32
+                  text_color: 0xDDDDDD
+              - label:
+                  id: remaining_icon
+                  align: CENTER
+                  x: -7%
+                  y: 36%
+                  text: "\U000F144E"
+                  text_font: font_mdi_40
+                  text_color: 0x87CEEB
+              - label:
+                  id: remaining_label
+                  align: CENTER
+                  x: 6%
+                  y: 36%
+                  text: "--m"
+                  text_font: font_dosis_32
+                  text_align: CENTER
+                  text_color: 0x87CEEB
 
     - id: page_ams
       bg_color: 0x000000
@@ -370,9 +487,11 @@ lvgl:
                   align: CENTER
                   y: -37%
                   text: "AMS"
+                  text_font: font_dosis_40
                   text_color: 0xFFFFFF
               - label:
                   id: ams_humidity_label
+                  text_font: font_dosis_32
                   align: CENTER
                   x: -24%
                   y: -24%
@@ -380,6 +499,7 @@ lvgl:
                   text_color: 0xDDDDDD
               - label:
                   id: ams_temp_label
+                  text_font: font_dosis_32
                   align: CENTER
                   x: 24%
                   y: -24%
@@ -402,6 +522,7 @@ lvgl:
                     - label:
                         id: ams_slot_1_label
                         align: CENTER
+                        text_font: font_dosis_20
                         text: "--"
                         text_color: 0xFFFFFF
                         text_align: CENTER
@@ -422,6 +543,7 @@ lvgl:
                     - label:
                         id: ams_slot_2_label
                         align: CENTER
+                        text_font: font_dosis_20
                         text: "--"
                         text_color: 0xFFFFFF
                         text_align: CENTER
@@ -442,6 +564,7 @@ lvgl:
                     - label:
                         id: ams_slot_3_label
                         align: CENTER
+                        text_font: font_dosis_20
                         text: "--"
                         text_color: 0xFFFFFF
                         text_align: CENTER
@@ -462,6 +585,7 @@ lvgl:
                     - label:
                         id: ams_slot_4_label
                         align: CENTER
+                        text_font: font_dosis_20
                         text: "--"
                         text_color: 0xFFFFFF
                         text_align: CENTER
@@ -590,7 +714,14 @@ interval:
                               stage.find("filament_loading") != std::string::npos ||
                               stage.find("filament_unloading") != std::string::npos;
           id(print_active) = !done && !failed && (running_like || stage_active || (p > 0 && p < 100));
-          bool should_dim = !id(print_active);
+          static uint32_t inactive_since = 0;
+          bool should_dim = false;
+          if (id(print_active)) {
+            inactive_since = 0;
+          } else {
+            if (inactive_since == 0) inactive_since = millis();
+            should_dim = (millis() - inactive_since) >= 5UL * 60UL * 1000UL;
+          }
           if (id(display_dimmed) != should_dim) id(display_dimmed) = should_dim;
 
           uint32_t target = 0x00FF00;
@@ -632,6 +763,16 @@ interval:
             if (ps.find("running") != std::string::npos || ps.find("printing") != std::string::npos) return std::string("printing");
             if (ps.find("finish") != std::string::npos) return std::string("finished");
             return ps.empty() ? std::string("idle") : ps.substr(0, 18);
+      - lambda: |-
+          auto lower = [](std::string s) { for (auto &c : s) c = (char)tolower((unsigned char)c); return s; };
+          std::string ps = id(print_status).has_state() ? lower(id(print_status).state) : "";
+          uint32_t col = 0xAAAAAA;
+          if (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) col = 0xFF3333;
+          else if (ps.find("pause") != std::string::npos) col = 0xFFA500;
+          else if (ps.find("prepare") != std::string::npos) col = 0xFFD54F;
+          else if (ps.find("running") != std::string::npos || ps.find("printing") != std::string::npos) col = 0xFFFFFF;
+          else if (ps.find("finish") != std::string::npos) col = 0x00BFFF;
+          lv_obj_set_style_text_color(id(status_label), lv_color_hex(col), LV_PART_MAIN);
       - lvgl.label.update:
           id: stage_label
           text: !lambda |-
@@ -641,14 +782,41 @@ interval:
       - lvgl.label.update:
           id: remaining_label
           text: !lambda |-
+            {
+              std::string ps = id(print_status).has_state() ? id(print_status).state : "";
+              for (auto &c : ps) c = (char) tolower((unsigned char) c);
+              if (ps.find("finish") != std::string::npos) return std::string("Done");
+            }
+            if (!id(print_active)) return std::string("--");
             if (!id(remaining_time).has_state()) return std::string("--m");
-            int minutes = (int) id(remaining_time).state;
-            if (minutes < 0) minutes = 0;
-            int h = minutes / 60;
-            int m = minutes % 60;
-            char buf[20];
-            if (h > 0) snprintf(buf, sizeof(buf), "%dh %dm", h, m);
-            else snprintf(buf, sizeof(buf), "%dm", m);
+            int rem = (int) id(remaining_time).state;
+            if (rem < 0) rem = 0;
+            char buf[40];
+            auto now = id(ha_time).now();
+            if (!now.is_valid()) {
+              snprintf(buf, sizeof(buf), "%dm", rem);
+              return std::string(buf);
+            }
+            auto eta = ESPTime::from_epoch_local(now.timestamp + (time_t) rem * 60);
+            int elapsed = -1;
+            if (id(start_time_iso).has_state()) {
+              int Y, Mo, D, H, Mi, S;
+              if (sscanf(id(start_time_iso).state.c_str(), "%d-%d-%dT%d:%d:%d", &Y, &Mo, &D, &H, &Mi, &S) == 6) {
+                int y = Y - (Mo <= 2);
+                int era = (y >= 0 ? y : y - 399) / 400;
+                unsigned yoe = (unsigned) (y - era * 400);
+                unsigned doy = (153u * (Mo + (Mo > 2 ? -3 : 9)) + 2) / 5 + D - 1;
+                unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                time_t start_utc = ((time_t) era * 146097 + (time_t) doe - 719468) * 86400
+                                   + H * 3600 + Mi * 60 + S;
+                elapsed = (int) ((now.timestamp - start_utc) / 60);
+                if (elapsed < 0) elapsed = 0;
+              }
+            }
+            if (elapsed >= 0)
+              snprintf(buf, sizeof(buf), "%d/%dm\nETA %02d:%02d", elapsed, elapsed + rem, eta.hour, eta.minute);
+            else
+              snprintf(buf, sizeof(buf), "%dm\nETA %02d:%02d", rem, eta.hour, eta.minute);
             return std::string(buf);
       - lvgl.label.update:
           id: layer_label
@@ -656,24 +824,24 @@ interval:
             int cur = id(current_layer).has_state() ? (int) id(current_layer).state : -1;
             int tot = id(total_layer).has_state() ? (int) id(total_layer).state : -1;
             char buf[24];
-            if (cur >= 0 && tot >= 0) snprintf(buf, sizeof(buf), "%d / %d", cur, tot);
-            else if (cur >= 0) snprintf(buf, sizeof(buf), "%d / --", cur);
-            else if (tot >= 0) snprintf(buf, sizeof(buf), "-- / %d", tot);
-            else snprintf(buf, sizeof(buf), "-- / --");
+            if (cur >= 0 && tot >= 0) snprintf(buf, sizeof(buf), "Layer: %d / %d", cur, tot);
+            else if (cur >= 0) snprintf(buf, sizeof(buf), "Layer: %d / --", cur);
+            else if (tot >= 0) snprintf(buf, sizeof(buf), "Layer: -- / %d", tot);
+            else snprintf(buf, sizeof(buf), "Layer: -- / --");
             return std::string(buf);
       - lvgl.label.update:
           id: nozzle_label
           text: !lambda |-
             char buf[20];
-            if (id(nozzle_temp).has_state()) snprintf(buf, sizeof(buf), "Noz %dC", (int) id(nozzle_temp).state);
-            else snprintf(buf, sizeof(buf), "Noz --C");
+            if (id(nozzle_temp).has_state()) snprintf(buf, sizeof(buf), "%d°C", (int) id(nozzle_temp).state);
+            else snprintf(buf, sizeof(buf), "--°C");
             return std::string(buf);
       - lvgl.label.update:
           id: bed_label
           text: !lambda |-
             char buf[20];
-            if (id(bed_temp).has_state()) snprintf(buf, sizeof(buf), "Bed %dC", (int) id(bed_temp).state);
-            else snprintf(buf, sizeof(buf), "Bed --C");
+            if (id(bed_temp).has_state()) snprintf(buf, sizeof(buf), "%d°C", (int) id(bed_temp).state);
+            else snprintf(buf, sizeof(buf), "--°C");
             return std::string(buf);
       - lvgl.label.update:
           id: ams_humidity_label
@@ -686,8 +854,8 @@ interval:
           id: ams_temp_label
           text: !lambda |-
             char buf[20];
-            if (id(ams_temp).has_state()) snprintf(buf, sizeof(buf), "T %dC", (int) id(ams_temp).state);
-            else snprintf(buf, sizeof(buf), "T --C");
+            if (id(ams_temp).has_state()) snprintf(buf, sizeof(buf), "T %d°C", (int) id(ams_temp).state);
+            else snprintf(buf, sizeof(buf), "T --°C");
             return std::string(buf);
 
   - interval: 200ms
@@ -716,8 +884,10 @@ interval:
           if (absy >= absx) {
             candidate = ay >= 0 ? 0 : 180;
           } else {
-            candidate = ax >= 0 ? 90 : 270;
+            candidate = ax >= 0 ? 270 : 90;
           }
+          // calibration: offset so USB-C-down reads as rotation 0 on this board
+          candidate = (candidate + ${rotation_offset}) % 360;
 
           static int pending = -1;
           static uint32_t pending_since = 0;

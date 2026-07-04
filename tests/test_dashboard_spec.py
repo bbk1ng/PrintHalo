@@ -14,13 +14,28 @@ class DashboardSpecTest(unittest.TestCase):
         cls.package = PACKAGE.read_text()
         cls.compile_script = COMPILE_SCRIPT.read_text()
 
-    def test_compile_gate_builds_two_display_widths(self):
+    def test_device_name_passed_via_terminal(self):
+        # master YAML keeps name/friendly_name as substitutions...
+        yaml = (ROOT / "esphome" / "round-amoled-466.yaml").read_text()
+        self.assertRegex(yaml, re.compile(r"^substitutions:\n  name: ", re.MULTILINE))
+        self.assertIn("name: ${name}", yaml)
+        self.assertIn("friendly_name: ${friendly_name}", yaml)
+        # ...and the compile script forwards terminal args as overrides
+        self.assertIn('device_name="${1:-}"', self.compile_script)
+        self.assertIn('friendly_name="${2:-}"', self.compile_script)
+        self.assertIn('name_args+=(-s name "${device_name}")', self.compile_script)
+        self.assertIn(
+            'name_args+=(-s friendly_name "${friendly_name}")', self.compile_script
+        )
+        self.assertIn('"${name_args[@]}"', self.compile_script)
+
+    def test_compile_gate_builds_amoled_board(self):
         self.assertIn('-s display_width "${width}"', self.compile_script)
         self.assertIn('compile "${config}"', self.compile_script)
         self.assertIn("pipx run esphome", self.compile_script)
         self.assertRegex(self.compile_script, r"-s display_width \"?\$\{width\}\"?")
-        self.assertIn("round-gc9a01a-240.yaml:240", self.compile_script)
         self.assertIn("round-amoled-466.yaml:466", self.compile_script)
+        self.assertNotIn("round-gc9a01a-240.yaml", self.compile_script)
 
     def test_tap_only_two_page_navigation(self):
         self.assertIn("page_wrap: true", self.package)
@@ -42,13 +57,13 @@ class DashboardSpecTest(unittest.TestCase):
             "_bed_temperature",
             "_current_layer",
             "_total_layer_count",
-            "_ams_1_humidity",
-            "_ams_1_temperature",
+            "_ams_humidity",
+            "_ams_temperature",
         ):
             self.assertIn(entity, self.package)
 
         for slot in range(1, 5):
-            self.assertIn(f"sensor.${{bambulab_printer}}_ams_1_tray_{slot}", self.package)
+            self.assertIn(f"sensor.${{bambulab_printer}}_ams_tray_{slot}", self.package)
             self.assertIn(f"id: ams_tray_{slot}_color", self.package)
         self.assertEqual(self.package.count("attribute: color"), 4)
         self.assertIn("r * 299 + g * 587 + b * 114", self.package)
@@ -56,7 +71,7 @@ class DashboardSpecTest(unittest.TestCase):
     def test_dimming_is_multiplier_on_configured_brightness(self):
         self.assertIn("id: configured_brightness", self.package)
         self.assertIn("id: brightness_control", self.package)
-        self.assertIn("level *= 0.10f", self.package)
+        self.assertIn("level *= 0.50f", self.package)
         self.assertIn("id(display_dimmed) = should_dim", self.package)
         self.assertIn("id(print_active)", self.package)
 

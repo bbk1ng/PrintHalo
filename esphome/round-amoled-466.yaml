@@ -5,8 +5,9 @@ substitutions:
   screen_size: "466"
   display_width: "466"
   display_height: "466"
-  ring_size: "386"
-  ring_width: "28"
+  ring_size: "466"
+  ring_width: "24"
+  rotation_offset: "180"
   brightness_default: "70"
 
 esphome:
@@ -17,9 +18,7 @@ esphome:
   on_boot:
     priority: -100
     then:
-      - light.turn_on:
-          id: display_backlight
-          brightness: !lambda return id(configured_brightness) / 100.0f;
+      - script.execute: apply_backlight
       - lambda: |-
           id(qmi8658).write_byte(0x02, 0x60);
           id(qmi8658).write_byte(0x03, 0x04);
@@ -53,7 +52,6 @@ psram:
 spi:
   - id: qspi_bus
     type: quad
-    interface: spi3
     clk_pin: GPIO10
     data_pins: [GPIO11, GPIO12, GPIO13, GPIO14]
 
@@ -70,11 +68,13 @@ i2c_device:
     address: 0x6B
 
 touchscreen:
+  # FT3168 at default 0x38; absent from boot I2C scan because the scan runs
+  # before GPIO42 (AMOLED_EN) powers its rail. 0x51 on the bus is the RTC.
   - platform: ft63x6
     id: touch_screen
     i2c_id: i2c_bus
-    address: 0x38
-    update_interval: 30ms
+    display: round_display
+    update_interval: 50ms
 
 display:
   - platform: mipi_spi
@@ -83,27 +83,14 @@ display:
     bus_mode: quad
     cs_pin: GPIO9
     reset_pin: GPIO21
+    enable_pin: GPIO42
     dimensions:
       width: ${display_width}
       height: ${display_height}
-    data_rate: 80000000
-    spi_mode: MODE0
+    color_depth: 16
     invert_colors: false
     auto_clear_enabled: false
     update_interval: never
-
-output:
-  - platform: ledc
-    pin: GPIO2
-    id: backlight_pwm
-    frequency: 1000Hz
-
-light:
-  - platform: monochromatic
-    output: backlight_pwm
-    id: display_backlight
-    name: "Display Backlight"
-    restore_mode: RESTORE_DEFAULT_ON
 
 packages:
   dashboard: !include packages/custom_bambu_dashboard.yaml
