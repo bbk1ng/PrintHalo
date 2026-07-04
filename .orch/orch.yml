@@ -30,7 +30,7 @@ scope:
 
 # === GitHub PR bridge (orch pr <n>) ===
 github:
-  mergeMethod: squash     # gh pr merge strategy: squash | merge | rebase; default: squash
+  mergeMethod: merge      # merge commit keeps orch/integration an ancestor of main; squash breaks ancestry → add/add conflicts in test gate
 
 # === Auto docs-update after a real merge (optional) ===
 docs:
