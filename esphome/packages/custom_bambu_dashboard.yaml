@@ -718,6 +718,8 @@ interval:
           } else {
             candidate = ax >= 0 ? 90 : 270;
           }
+          // calibration: raw axis mapping reads 90 short of USB-C-down = 0
+          candidate = (candidate + 90) % 360;
 
           static int pending = -1;
           static uint32_t pending_since = 0;

@@ -79,13 +79,16 @@ touchscreen:
     i2c_id: i2c_bus
 
 display:
-  - platform: ili9xxx
-    model: gc9a01a
+  - platform: mipi_spi
+    model: GC9A01A
     id: round_display
     spi_id: spi_bus
     cs_pin: GPIO9
     dc_pin: GPIO8
     reset_pin: GPIO14
+    dimensions:
+      width: ${display_width}
+      height: ${display_height}
     invert_colors: true
     auto_clear_enabled: false
     update_interval: never
