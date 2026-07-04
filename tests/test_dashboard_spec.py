@@ -14,6 +14,21 @@ class DashboardSpecTest(unittest.TestCase):
         cls.package = PACKAGE.read_text()
         cls.compile_script = COMPILE_SCRIPT.read_text()
 
+    def test_device_name_passed_via_terminal(self):
+        # master YAML keeps name/friendly_name as substitutions...
+        yaml = (ROOT / "esphome" / "round-amoled-466.yaml").read_text()
+        self.assertRegex(yaml, re.compile(r"^substitutions:\n  name: ", re.MULTILINE))
+        self.assertIn("name: ${name}", yaml)
+        self.assertIn("friendly_name: ${friendly_name}", yaml)
+        # ...and the compile script forwards terminal args as overrides
+        self.assertIn('device_name="${1:-}"', self.compile_script)
+        self.assertIn('friendly_name="${2:-}"', self.compile_script)
+        self.assertIn('name_args+=(-s name "${device_name}")', self.compile_script)
+        self.assertIn(
+            'name_args+=(-s friendly_name "${friendly_name}")', self.compile_script
+        )
+        self.assertIn('"${name_args[@]}"', self.compile_script)
+
     def test_compile_gate_builds_amoled_board(self):
         self.assertIn('-s display_width "${width}"', self.compile_script)
         self.assertIn('compile "${config}"', self.compile_script)
