@@ -7,6 +7,7 @@ substitutions:
   display_height: "466"
   ring_size: "466"
   ring_width: "24"
+  rotation_offset: "180"
   brightness_default: "70"
 
 esphome:

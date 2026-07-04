@@ -121,11 +121,11 @@ sensor:
     internal: true
   - platform: homeassistant
     id: ams_humidity
-    entity_id: sensor.${bambulab_printer}_ams_1_humidity
+    entity_id: sensor.${bambulab_printer}_ams_humidity
     internal: true
   - platform: homeassistant
     id: ams_temp
-    entity_id: sensor.${bambulab_printer}_ams_1_temperature
+    entity_id: sensor.${bambulab_printer}_ams_temperature
     internal: true
 
 text_sensor:
@@ -153,7 +153,7 @@ text_sensor:
 
   - platform: homeassistant
     id: ams_tray_1
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_1
+    entity_id: sensor.${bambulab_printer}_ams_tray_1
     internal: true
     on_value:
       then:
@@ -162,7 +162,7 @@ text_sensor:
             text: !lambda return x.substr(0, 6);
   - platform: homeassistant
     id: ams_tray_2
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_2
+    entity_id: sensor.${bambulab_printer}_ams_tray_2
     internal: true
     on_value:
       then:
@@ -171,7 +171,7 @@ text_sensor:
             text: !lambda return x.substr(0, 6);
   - platform: homeassistant
     id: ams_tray_3
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_3
+    entity_id: sensor.${bambulab_printer}_ams_tray_3
     internal: true
     on_value:
       then:
@@ -180,7 +180,7 @@ text_sensor:
             text: !lambda return x.substr(0, 6);
   - platform: homeassistant
     id: ams_tray_4
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_4
+    entity_id: sensor.${bambulab_printer}_ams_tray_4
     internal: true
     on_value:
       then:
@@ -190,7 +190,7 @@ text_sensor:
 
   - platform: homeassistant
     id: ams_tray_1_color
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_1
+    entity_id: sensor.${bambulab_printer}_ams_tray_1
     attribute: color
     internal: true
     on_value:
@@ -199,6 +199,7 @@ text_sensor:
             std::string c = x;
             if (!c.empty() && c[0] == '#') c.erase(0, 1);
             if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            if (c.size() == 8) c.erase(6);  // strip RGBA alpha suffix
             uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
             uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
             uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
@@ -206,7 +207,7 @@ text_sensor:
             lv_obj_set_style_text_color(id(ams_slot_1_label), lv_color_hex(text), LV_PART_MAIN);
   - platform: homeassistant
     id: ams_tray_2_color
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_2
+    entity_id: sensor.${bambulab_printer}_ams_tray_2
     attribute: color
     internal: true
     on_value:
@@ -215,6 +216,7 @@ text_sensor:
             std::string c = x;
             if (!c.empty() && c[0] == '#') c.erase(0, 1);
             if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            if (c.size() == 8) c.erase(6);  // strip RGBA alpha suffix
             uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
             uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
             uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
@@ -222,7 +224,7 @@ text_sensor:
             lv_obj_set_style_text_color(id(ams_slot_2_label), lv_color_hex(text), LV_PART_MAIN);
   - platform: homeassistant
     id: ams_tray_3_color
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_3
+    entity_id: sensor.${bambulab_printer}_ams_tray_3
     attribute: color
     internal: true
     on_value:
@@ -231,6 +233,7 @@ text_sensor:
             std::string c = x;
             if (!c.empty() && c[0] == '#') c.erase(0, 1);
             if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            if (c.size() == 8) c.erase(6);  // strip RGBA alpha suffix
             uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
             uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
             uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
@@ -238,7 +241,7 @@ text_sensor:
             lv_obj_set_style_text_color(id(ams_slot_3_label), lv_color_hex(text), LV_PART_MAIN);
   - platform: homeassistant
     id: ams_tray_4_color
-    entity_id: sensor.${bambulab_printer}_ams_1_tray_4
+    entity_id: sensor.${bambulab_printer}_ams_tray_4
     attribute: color
     internal: true
     on_value:
@@ -247,6 +250,7 @@ text_sensor:
             std::string c = x;
             if (!c.empty() && c[0] == '#') c.erase(0, 1);
             if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            if (c.size() == 8) c.erase(6);  // strip RGBA alpha suffix
             uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
             uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
             uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
@@ -797,7 +801,7 @@ interval:
           if (absy >= absx) {
             candidate = ay >= 0 ? 0 : 180;
           } else {
-            candidate = ax >= 0 ? 90 : 270;
+            candidate = ax >= 0 ? 270 : 90;
           }
           // calibration: offset so USB-C-down reads as rotation 0 on this board
           candidate = (candidate + ${rotation_offset}) % 360;

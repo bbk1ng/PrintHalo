@@ -42,13 +42,13 @@ class DashboardSpecTest(unittest.TestCase):
             "_bed_temperature",
             "_current_layer",
             "_total_layer_count",
-            "_ams_1_humidity",
-            "_ams_1_temperature",
+            "_ams_humidity",
+            "_ams_temperature",
         ):
             self.assertIn(entity, self.package)
 
         for slot in range(1, 5):
-            self.assertIn(f"sensor.${{bambulab_printer}}_ams_1_tray_{slot}", self.package)
+            self.assertIn(f"sensor.${{bambulab_printer}}_ams_tray_{slot}", self.package)
             self.assertIn(f"id: ams_tray_{slot}_color", self.package)
         self.assertEqual(self.package.count("attribute: color"), 4)
         self.assertIn("r * 299 + g * 587 + b * 114", self.package)
