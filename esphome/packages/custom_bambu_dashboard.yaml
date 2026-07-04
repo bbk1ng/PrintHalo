@@ -1,0 +1,761 @@
+substitutions:
+  bambulab_printer: YOUR_PRINTER_ENTITY
+  screen_size: "320"
+  display_width: "${screen_size}"
+  display_height: "${screen_size}"
+  ring_size: "260"
+  ring_width: "20"
+  brightness_default: "70"
+
+globals:
+  - id: configured_brightness
+    type: float
+    restore_value: yes
+    initial_value: "${brightness_default}"
+  - id: display_dimmed
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: print_active
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: ui_col_now
+    type: uint32_t
+    restore_value: no
+    initial_value: "0x00FF00"
+  - id: ui_col_target
+    type: uint32_t
+    restore_value: no
+    initial_value: "0x00FF00"
+  - id: last_prog
+    type: int
+    restore_value: no
+    initial_value: "0"
+  - id: display_rotation
+    type: int
+    restore_value: no
+    initial_value: "0"
+  - id: requested_rotation
+    type: int
+    restore_value: no
+    initial_value: "0"
+
+script:
+  - id: apply_backlight
+    then:
+      - light.turn_on:
+          id: display_backlight
+          brightness: !lambda |-
+            float level = id(configured_brightness) / 100.0f;
+            if (id(display_dimmed)) level *= 0.10f;
+            if (level < 0.01f) level = 0.01f;
+            if (level > 1.0f) level = 1.0f;
+            return level;
+
+number:
+  - platform: template
+    name: "Display Brightness"
+    id: brightness_control
+    min_value: 10
+    max_value: 100
+    step: 5
+    initial_value: ${brightness_default}
+    restore_value: true
+    optimistic: true
+    on_value:
+      then:
+        - lambda: id(configured_brightness) = x;
+        - script.execute: apply_backlight
+
+sensor:
+  - platform: homeassistant
+    id: print_progress
+    entity_id: sensor.${bambulab_printer}_print_progress
+    internal: true
+    filters:
+      - throttle: 1s
+  - platform: homeassistant
+    id: nozzle_temp
+    entity_id: sensor.${bambulab_printer}_nozzle_temperature
+    internal: true
+  - platform: homeassistant
+    id: bed_temp
+    entity_id: sensor.${bambulab_printer}_bed_temperature
+    internal: true
+  - platform: homeassistant
+    id: remaining_time
+    entity_id: sensor.${bambulab_printer}_remaining_time
+    internal: true
+  - platform: homeassistant
+    id: current_layer
+    entity_id: sensor.${bambulab_printer}_current_layer
+    internal: true
+  - platform: homeassistant
+    id: total_layer
+    entity_id: sensor.${bambulab_printer}_total_layer_count
+    internal: true
+  - platform: homeassistant
+    id: ams_humidity
+    entity_id: sensor.${bambulab_printer}_ams_1_humidity
+    internal: true
+  - platform: homeassistant
+    id: ams_temp
+    entity_id: sensor.${bambulab_printer}_ams_1_temperature
+    internal: true
+
+text_sensor:
+  - platform: homeassistant
+    id: print_status
+    entity_id: sensor.${bambulab_printer}_print_status
+    internal: true
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: |-
+                std::string s = x;
+                for (auto &c : s) c = (char)tolower((unsigned char)c);
+                return s.find("running") != std::string::npos ||
+                       s.find("printing") != std::string::npos ||
+                       s.find("prepare") != std::string::npos;
+            then:
+              - lvgl.page.show:
+                  id: page_status
+  - platform: homeassistant
+    id: current_stage
+    entity_id: sensor.${bambulab_printer}_current_stage
+    internal: true
+
+  - platform: homeassistant
+    id: ams_tray_1
+    entity_id: sensor.${bambulab_printer}_ams_1_tray_1
+    internal: true
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: ams_slot_1_label
+            text: !lambda return x.substr(0, 6);
+  - platform: homeassistant
+    id: ams_tray_2
+    entity_id: sensor.${bambulab_printer}_ams_1_tray_2
+    internal: true
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: ams_slot_2_label
+            text: !lambda return x.substr(0, 6);
+  - platform: homeassistant
+    id: ams_tray_3
+    entity_id: sensor.${bambulab_printer}_ams_1_tray_3
+    internal: true
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: ams_slot_3_label
+            text: !lambda return x.substr(0, 6);
+  - platform: homeassistant
+    id: ams_tray_4
+    entity_id: sensor.${bambulab_printer}_ams_1_tray_4
+    internal: true
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: ams_slot_4_label
+            text: !lambda return x.substr(0, 6);
+
+  - platform: homeassistant
+    id: ams_tray_1_color
+    entity_id: sensor.${bambulab_printer}_ams_1_tray_1
+    attribute: color
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            std::string c = x;
+            if (!c.empty() && c[0] == '#') c.erase(0, 1);
+            if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
+            uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+            uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
+            lv_obj_set_style_bg_color(id(ams_slot_1_box), lv_color_hex(rgb), LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(ams_slot_1_label), lv_color_hex(text), LV_PART_MAIN);
+  - platform: homeassistant
+    id: ams_tray_2_color
+    entity_id: sensor.${bambulab_printer}_ams_1_tray_2
+    attribute: color
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            std::string c = x;
+            if (!c.empty() && c[0] == '#') c.erase(0, 1);
+            if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
+            uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+            uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
+            lv_obj_set_style_bg_color(id(ams_slot_2_box), lv_color_hex(rgb), LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(ams_slot_2_label), lv_color_hex(text), LV_PART_MAIN);
+  - platform: homeassistant
+    id: ams_tray_3_color
+    entity_id: sensor.${bambulab_printer}_ams_1_tray_3
+    attribute: color
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            std::string c = x;
+            if (!c.empty() && c[0] == '#') c.erase(0, 1);
+            if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
+            uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+            uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
+            lv_obj_set_style_bg_color(id(ams_slot_3_box), lv_color_hex(rgb), LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(ams_slot_3_label), lv_color_hex(text), LV_PART_MAIN);
+  - platform: homeassistant
+    id: ams_tray_4_color
+    entity_id: sensor.${bambulab_printer}_ams_1_tray_4
+    attribute: color
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            std::string c = x;
+            if (!c.empty() && c[0] == '#') c.erase(0, 1);
+            if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
+            uint8_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+            uint32_t text = ((r * 299 + g * 587 + b * 114) / 1000) > 180 ? 0x111111 : 0xFFFFFF;
+            lv_obj_set_style_bg_color(id(ams_slot_4_box), lv_color_hex(rgb), LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(ams_slot_4_label), lv_color_hex(text), LV_PART_MAIN);
+
+lvgl:
+  id: lvgl_id
+  color_depth: 16
+  bg_color: 0x000000
+  displays:
+    - round_display
+  touchscreens:
+    - touchscreen_id: touch_screen
+  page_wrap: true
+  pages:
+    - id: page_status
+      bg_color: 0x000000
+      scroll_dir: NONE
+      widgets:
+        - obj:
+            width: 100%
+            height: 100%
+            bg_color: 0x000000
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            scroll_dir: NONE
+            widgets:
+              - obj:
+                  align: LEFT_MID
+                  width: 40%
+                  height: 100%
+                  bg_opa: TRANSP
+                  border_width: 0
+                  clickable: true
+                  on_press:
+                    - lvgl.page.previous:
+              - obj:
+                  align: RIGHT_MID
+                  width: 40%
+                  height: 100%
+                  bg_opa: TRANSP
+                  border_width: 0
+                  clickable: true
+                  on_press:
+                    - lvgl.page.next:
+              - arc:
+                  id: progress_arc
+                  align: CENTER
+                  width: ${ring_size}
+                  height: ${ring_size}
+                  min_value: 0
+                  max_value: 100
+                  value: 0
+                  start_angle: 135
+                  end_angle: 45
+                  arc_width: ${ring_width}
+                  arc_color: 0x242424
+                  arc_rounded: true
+                  adjustable: false
+                  bg_opa: TRANSP
+                  border_opa: TRANSP
+                  indicator:
+                    arc_width: ${ring_width}
+                    arc_color: 0x666666
+                    arc_rounded: true
+              - label:
+                  id: progress_label
+                  align: CENTER
+                  y: -18%
+                  text: "--%"
+                  text_color: 0xFFFFFF
+              - label:
+                  id: status_label
+                  align: CENTER
+                  y: -5%
+                  text: "idle"
+                  text_color: 0xAAAAAA
+              - label:
+                  id: stage_label
+                  align: CENTER
+                  y: 8%
+                  text: "waiting"
+                  text_color: 0xDDDDDD
+              - label:
+                  id: layer_label
+                  align: CENTER
+                  y: 21%
+                  text: "-- / --"
+                  text_color: 0xDDDDDD
+              - label:
+                  id: remaining_label
+                  align: CENTER
+                  y: 33%
+                  text: "--m"
+                  text_color: 0x87CEEB
+              - label:
+                  id: nozzle_label
+                  align: CENTER
+                  x: -22%
+                  y: 43%
+                  text: "Noz --C"
+                  text_color: 0xFFFFFF
+              - label:
+                  id: bed_label
+                  align: CENTER
+                  x: 22%
+                  y: 43%
+                  text: "Bed --C"
+                  text_color: 0xFFFFFF
+
+    - id: page_ams
+      bg_color: 0x000000
+      scroll_dir: NONE
+      widgets:
+        - obj:
+            width: 100%
+            height: 100%
+            bg_color: 0x000000
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            scroll_dir: NONE
+            widgets:
+              - obj:
+                  align: LEFT_MID
+                  width: 40%
+                  height: 100%
+                  bg_opa: TRANSP
+                  border_width: 0
+                  clickable: true
+                  on_press:
+                    - lvgl.page.previous:
+              - obj:
+                  align: RIGHT_MID
+                  width: 40%
+                  height: 100%
+                  bg_opa: TRANSP
+                  border_width: 0
+                  clickable: true
+                  on_press:
+                    - lvgl.page.next:
+              - label:
+                  align: CENTER
+                  y: -37%
+                  text: "AMS"
+                  text_color: 0xFFFFFF
+              - label:
+                  id: ams_humidity_label
+                  align: CENTER
+                  x: -24%
+                  y: -24%
+                  text: "H --%"
+                  text_color: 0xDDDDDD
+              - label:
+                  id: ams_temp_label
+                  align: CENTER
+                  x: 24%
+                  y: -24%
+                  text: "T --C"
+                  text_color: 0xDDDDDD
+              - obj:
+                  id: ams_slot_1_box
+                  align: CENTER
+                  x: -30%
+                  y: 13%
+                  width: 18%
+                  height: 27%
+                  bg_color: 0x1A1A1A
+                  bg_opa: COVER
+                  border_width: 1
+                  border_color: 0x666666
+                  radius: 4
+                  scroll_dir: NONE
+                  widgets:
+                    - label:
+                        id: ams_slot_1_label
+                        align: CENTER
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_align: CENTER
+              - obj:
+                  id: ams_slot_2_box
+                  align: CENTER
+                  x: -10%
+                  y: 13%
+                  width: 18%
+                  height: 27%
+                  bg_color: 0x1A1A1A
+                  bg_opa: COVER
+                  border_width: 1
+                  border_color: 0x666666
+                  radius: 4
+                  scroll_dir: NONE
+                  widgets:
+                    - label:
+                        id: ams_slot_2_label
+                        align: CENTER
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_align: CENTER
+              - obj:
+                  id: ams_slot_3_box
+                  align: CENTER
+                  x: 10%
+                  y: 13%
+                  width: 18%
+                  height: 27%
+                  bg_color: 0x1A1A1A
+                  bg_opa: COVER
+                  border_width: 1
+                  border_color: 0x666666
+                  radius: 4
+                  scroll_dir: NONE
+                  widgets:
+                    - label:
+                        id: ams_slot_3_label
+                        align: CENTER
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_align: CENTER
+              - obj:
+                  id: ams_slot_4_box
+                  align: CENTER
+                  x: 30%
+                  y: 13%
+                  width: 18%
+                  height: 27%
+                  bg_color: 0x1A1A1A
+                  bg_opa: COVER
+                  border_width: 1
+                  border_color: 0x666666
+                  radius: 4
+                  scroll_dir: NONE
+                  widgets:
+                    - label:
+                        id: ams_slot_4_label
+                        align: CENTER
+                        text: "--"
+                        text_color: 0xFFFFFF
+                        text_align: CENTER
+
+interval:
+  - interval: 50ms
+    then:
+      - lambda: |-
+          auto lower = [](std::string s) {
+            for (auto &c : s) c = (char)tolower((unsigned char)c);
+            return s;
+          };
+          auto lerp8 = [](uint8_t a, uint8_t b, float t) -> uint8_t {
+            return (uint8_t) lroundf(a + (b - a) * t);
+          };
+          auto pulse_between = [&](uint32_t lo, uint32_t hi, uint32_t period_ms) -> uint32_t {
+            const float pi = 3.14159265f;
+            float t = 0.5f + 0.5f * sinf((millis() % period_ms) * 2.0f * pi / period_ms);
+            uint8_t lr = (lo >> 16) & 0xFF, lg = (lo >> 8) & 0xFF, lb = lo & 0xFF;
+            uint8_t hr = (hi >> 16) & 0xFF, hg = (hi >> 8) & 0xFF, hb = hi & 0xFF;
+            return ((uint32_t) lerp8(lr, hr, t) << 16) | ((uint32_t) lerp8(lg, hg, t) << 8) | lerp8(lb, hb, t);
+          };
+          auto set_ring = [&](uint32_t main_col, uint32_t ind_col) {
+            lv_obj_set_style_arc_color(id(progress_arc), lv_color_hex(main_col), LV_PART_MAIN);
+            lv_obj_set_style_arc_color(id(progress_arc), lv_color_hex(ind_col), LV_PART_INDICATOR);
+          };
+          auto step_to = [](uint8_t cur, uint8_t tgt, uint8_t step) -> uint8_t {
+            int d = (int) tgt - (int) cur;
+            if (d > 0) return (uint8_t)(cur + std::min(d, (int) step));
+            if (d < 0) return (uint8_t)(cur - std::min(-d, (int) step));
+            return cur;
+          };
+
+          std::string stage = id(current_stage).has_state() ? lower(id(current_stage).state) : "";
+          std::string ps = id(print_status).has_state() ? lower(id(print_status).state) : "";
+          int prog = id(print_progress).has_state() ? (int) id(print_progress).state : id(last_prog);
+          if (prog < 0) prog = 0;
+          if (prog > 100) prog = 100;
+
+          bool filament = stage.find("filament_loading") != std::string::npos ||
+                          stage.find("filament_unloading") != std::string::npos;
+          if (filament) {
+            const bool loading = stage.find("filament_loading") != std::string::npos;
+            const uint32_t fill_ms = 2000U;
+            uint32_t t = millis() % (fill_ms + 300U);
+            int value = loading ? 100 : 0;
+            if (t < fill_ms) {
+              float f = (float)t / (float)fill_ms;
+              value = loading ? (int)lroundf(f * 100.0f) : (int)lroundf((1.0f - f) * 100.0f);
+            }
+            set_ring(0x101010, 0xFFD54F);
+            lv_arc_set_value(id(progress_arc), value);
+            return;
+          }
+
+          if (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) {
+            uint32_t c = pulse_between(0x220000, 0xFF3333, 1600);
+            set_ring(c, c);
+            return;
+          }
+          if (ps.find("pause") != std::string::npos) {
+            uint32_t c = pulse_between(0x3A3100, 0xFFD54F, 1400);
+            set_ring(0x101010, c);
+            return;
+          }
+          if (stage.find("heatbed_preheating") != std::string::npos ||
+              stage.find("nozzle_preheating") != std::string::npos ||
+              stage.find("preheat") != std::string::npos) {
+            uint32_t c = pulse_between(0x3A1F00, 0xFFA500, 1400);
+            set_ring(c, c);
+            return;
+          }
+          if (stage.find("auto_bed_leveling") != std::string::npos ||
+              stage.find("bed_level") != std::string::npos) {
+            uint32_t c = pulse_between(0x220033, 0xAA66FF, 1400);
+            set_ring(c, c);
+            return;
+          }
+          bool done = (ps.find("finish") != std::string::npos && stage.find("idle") != std::string::npos && prog == 100);
+          if (done) {
+            set_ring(0x00BFFF, 0x00BFFF);
+            return;
+          }
+          bool idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
+          if (idleish && !id(print_active)) {
+            set_ring(0x404040, 0x404040);
+            return;
+          }
+
+          uint32_t c_now = id(ui_col_now);
+          uint32_t c_tgt = id(ui_col_target);
+          uint8_t r = step_to((c_now >> 16) & 0xFF, (c_tgt >> 16) & 0xFF, 25);
+          uint8_t g = step_to((c_now >> 8) & 0xFF, (c_tgt >> 8) & 0xFF, 25);
+          uint8_t b = step_to(c_now & 0xFF, c_tgt & 0xFF, 25);
+          uint32_t mixed = ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
+          id(ui_col_now) = mixed;
+          set_ring(0x101010, mixed);
+
+  - interval: 1s
+    then:
+      - lambda: |-
+          auto lower = [](std::string s) {
+            for (auto &c : s) c = (char)tolower((unsigned char)c);
+            return s;
+          };
+          std::string ps = id(print_status).has_state() ? lower(id(print_status).state) : "";
+          std::string stage = id(current_stage).has_state() ? lower(id(current_stage).state) : "";
+          int p = id(print_progress).has_state() ? (int) id(print_progress).state : id(last_prog);
+          if (p < 0) p = 0;
+          if (p > 100) p = 100;
+          if (id(print_progress).has_state()) id(last_prog) = p;
+
+          bool done = ps.find("finish") != std::string::npos &&
+                      (stage.find("idle") != std::string::npos || stage.empty()) &&
+                      p >= 100;
+          bool failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
+          bool running_like = ps.find("running") != std::string::npos ||
+                              ps.find("printing") != std::string::npos ||
+                              ps.find("prepare") != std::string::npos ||
+                              ps.find("pause") != std::string::npos;
+          bool stage_active = stage.find("printing") != std::string::npos ||
+                              stage.find("preheat") != std::string::npos ||
+                              stage.find("heatbed") != std::string::npos ||
+                              stage.find("nozzle_preheating") != std::string::npos ||
+                              stage.find("bed_level") != std::string::npos ||
+                              stage.find("filament_loading") != std::string::npos ||
+                              stage.find("filament_unloading") != std::string::npos;
+          id(print_active) = !done && !failed && (running_like || stage_active || (p > 0 && p < 100));
+          bool should_dim = !id(print_active);
+          if (id(display_dimmed) != should_dim) id(display_dimmed) = should_dim;
+
+          uint32_t target = 0x00FF00;
+          if (ps.find("pause") != std::string::npos) target = 0xFFD54F;
+          else if (failed) target = 0xFF3333;
+          else if (done) target = 0x00BFFF;
+          else if (stage.find("preheat") != std::string::npos || stage.find("heatbed") != std::string::npos) target = 0xFFA500;
+          else if (stage.find("bed_level") != std::string::npos) target = 0xAA66FF;
+          else if (!id(print_active)) target = 0x666666;
+          id(ui_col_target) = target;
+      - script.execute: apply_backlight
+      - lvgl.arc.update:
+          id: progress_arc
+          value: !lambda |-
+            if (id(print_progress).has_state()) {
+              int p = (int) id(print_progress).state;
+              if (p < 0) p = 0;
+              if (p > 100) p = 100;
+              return p;
+            }
+            return id(last_prog);
+      - lvgl.label.update:
+          id: progress_label
+          text: !lambda |-
+            int p = id(print_progress).has_state() ? (int) id(print_progress).state : id(last_prog);
+            if (p < 0) p = 0;
+            if (p > 100) p = 100;
+            char buf[12];
+            snprintf(buf, sizeof(buf), "%d%%", p);
+            return std::string(buf);
+      - lvgl.label.update:
+          id: status_label
+          text: !lambda |-
+            auto lower = [](std::string s) { for (auto &c : s) c = (char)tolower((unsigned char)c); return s; };
+            std::string ps = id(print_status).has_state() ? lower(id(print_status).state) : "";
+            if (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) return std::string("error");
+            if (ps.find("pause") != std::string::npos) return std::string("paused");
+            if (ps.find("prepare") != std::string::npos) return std::string("preparing");
+            if (ps.find("running") != std::string::npos || ps.find("printing") != std::string::npos) return std::string("printing");
+            if (ps.find("finish") != std::string::npos) return std::string("finished");
+            return ps.empty() ? std::string("idle") : ps.substr(0, 18);
+      - lvgl.label.update:
+          id: stage_label
+          text: !lambda |-
+            std::string s = id(current_stage).has_state() ? id(current_stage).state : "waiting";
+            for (auto &c : s) if (c == '_' || c == '-') c = ' ';
+            return s.substr(0, 22);
+      - lvgl.label.update:
+          id: remaining_label
+          text: !lambda |-
+            if (!id(remaining_time).has_state()) return std::string("--m");
+            int minutes = (int) id(remaining_time).state;
+            if (minutes < 0) minutes = 0;
+            int h = minutes / 60;
+            int m = minutes % 60;
+            char buf[20];
+            if (h > 0) snprintf(buf, sizeof(buf), "%dh %dm", h, m);
+            else snprintf(buf, sizeof(buf), "%dm", m);
+            return std::string(buf);
+      - lvgl.label.update:
+          id: layer_label
+          text: !lambda |-
+            int cur = id(current_layer).has_state() ? (int) id(current_layer).state : -1;
+            int tot = id(total_layer).has_state() ? (int) id(total_layer).state : -1;
+            char buf[24];
+            if (cur >= 0 && tot >= 0) snprintf(buf, sizeof(buf), "%d / %d", cur, tot);
+            else if (cur >= 0) snprintf(buf, sizeof(buf), "%d / --", cur);
+            else if (tot >= 0) snprintf(buf, sizeof(buf), "-- / %d", tot);
+            else snprintf(buf, sizeof(buf), "-- / --");
+            return std::string(buf);
+      - lvgl.label.update:
+          id: nozzle_label
+          text: !lambda |-
+            char buf[20];
+            if (id(nozzle_temp).has_state()) snprintf(buf, sizeof(buf), "Noz %dC", (int) id(nozzle_temp).state);
+            else snprintf(buf, sizeof(buf), "Noz --C");
+            return std::string(buf);
+      - lvgl.label.update:
+          id: bed_label
+          text: !lambda |-
+            char buf[20];
+            if (id(bed_temp).has_state()) snprintf(buf, sizeof(buf), "Bed %dC", (int) id(bed_temp).state);
+            else snprintf(buf, sizeof(buf), "Bed --C");
+            return std::string(buf);
+      - lvgl.label.update:
+          id: ams_humidity_label
+          text: !lambda |-
+            char buf[20];
+            if (id(ams_humidity).has_state()) snprintf(buf, sizeof(buf), "H %d%%", (int) id(ams_humidity).state);
+            else snprintf(buf, sizeof(buf), "H --%%");
+            return std::string(buf);
+      - lvgl.label.update:
+          id: ams_temp_label
+          text: !lambda |-
+            char buf[20];
+            if (id(ams_temp).has_state()) snprintf(buf, sizeof(buf), "T %dC", (int) id(ams_temp).state);
+            else snprintf(buf, sizeof(buf), "T --C");
+            return std::string(buf);
+
+  - interval: 200ms
+    then:
+      - lambda: |-
+          auto read16 = [](uint8_t lo, uint8_t hi) -> int16_t {
+            return (int16_t)((uint16_t)lo | ((uint16_t)hi << 8));
+          };
+          auto xl = id(qmi8658).read_byte(0x35);
+          auto xh = id(qmi8658).read_byte(0x36);
+          auto yl = id(qmi8658).read_byte(0x37);
+          auto yh = id(qmi8658).read_byte(0x38);
+          auto zl = id(qmi8658).read_byte(0x39);
+          auto zh = id(qmi8658).read_byte(0x3A);
+          if (!xl.has_value() || !xh.has_value() || !yl.has_value() || !yh.has_value() ||
+              !zl.has_value() || !zh.has_value()) return;
+
+          int16_t ax = read16(xl.value(), xh.value());
+          int16_t ay = read16(yl.value(), yh.value());
+          int16_t az = read16(zl.value(), zh.value());
+          int absx = abs((int)ax), absy = abs((int)ay), absz = abs((int)az);
+          int dominant = std::max(absx, absy);
+          if (dominant < 2000 || dominant < (absz / 3)) return;
+
+          int candidate;
+          if (absy >= absx) {
+            candidate = ay >= 0 ? 0 : 180;
+          } else {
+            candidate = ax >= 0 ? 90 : 270;
+          }
+
+          static int pending = -1;
+          static uint32_t pending_since = 0;
+          if (candidate == id(display_rotation)) {
+            pending = -1;
+            return;
+          }
+          if (candidate != pending) {
+            pending = candidate;
+            pending_since = millis();
+            return;
+          }
+          if (millis() - pending_since >= 800) {
+            id(requested_rotation) = candidate;
+            pending = -1;
+          }
+      - if:
+          condition:
+            lambda: return id(requested_rotation) != id(display_rotation);
+          then:
+            - if:
+                condition:
+                  lambda: return id(requested_rotation) == 0;
+                then:
+                  - lvgl.display.set_rotation: 0
+            - if:
+                condition:
+                  lambda: return id(requested_rotation) == 90;
+                then:
+                  - lvgl.display.set_rotation: 90
+            - if:
+                condition:
+                  lambda: return id(requested_rotation) == 180;
+                then:
+                  - lvgl.display.set_rotation: 180
+            - if:
+                condition:
+                  lambda: return id(requested_rotation) == 270;
+                then:
+                  - lvgl.display.set_rotation: 270
+            - lambda: id(display_rotation) = id(requested_rotation);
