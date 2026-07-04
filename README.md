@@ -1,54 +1,73 @@
-# repo-template
+# dashboard-esp32
 
-Self-bootstrapping project template wired for [agent-orch](https://github.com/bbk1ng/agent-orch).
-Clone it, rename, and start shipping — the orchestration workflow, task tracking,
-and a passing test are already in place.
+An [ESPHome](https://esphome.io) dashboard for **Bambu Lab 3D printers**, built
+for a round 466 × 466 AMOLED display on an ESP32-S3 board. It pulls live print
+data from Home Assistant and shows progress, temperatures, layer counts, AMS tray
+colours, and remaining time on a compact touch screen.
+
+## Hardware
+
+| Component | Detail |
+|-----------|--------|
+| MCU | ESP32-S3 (octal PSRAM, 80 MHz) |
+| Display | 466 × 466 MIPI-SPI AMOLED (CO5300), quad-SPI |
+| Touch | FT63x6 capacitive touch controller (I²C) |
+| IMU | QMI8658 (I²C, used for auto-rotation) |
 
 ## Layout
 
 ```
 .
-├── .orch/orch.yml          # agent-orch config (author/reviewer rotation, test gate, merge policy)
-├── src/                    # source code (example.py is a placeholder — replace it)
-├── tests/                  # stdlib unittest suite (no test deps)
-├── tasks/
-│   ├── todo.md             # active plan, checkable items
-│   └── lessons.md          # corrections captured into rules
-├── docs/                   # design notes, architecture
-├── CLAUDE.md               # instructions for Claude Code / agents in this repo
-├── WORKFLOW-ORCHESTRATION.md  # how work flows through plan → build → verify → merge
-└── pyproject.toml          # project metadata
+├── esphome/
+│   ├── round-amoled-466.yaml          # top-level ESPHome config for the 466 mm board
+│   ├── packages/
+│   │   └── custom_bambu_dashboard.yaml  # LVGL UI, sensors, AMS colour logic
+│   ├── fonts/
+│   │   └── materialdesignicons-webfont.ttf
+│   └── images/
+│       └── bambuicon.png
+├── scripts/
+│   └── compile-esphome.sh             # build helper (supports multi-device overrides)
+├── tasks/                             # active plan & captured lessons
+└── docs/                              # design notes
 ```
+
+## Prerequisites
+
+- [ESPHome](https://esphome.io/guides/installing_esphome) ≥ 2025.9.0
+- Home Assistant with the [Bambu Lab integration](https://github.com/greghesp/ha-bambulab)
+  installed and your printer configured
 
 ## Quick start
 
-One command bootstraps a fresh project — clones the template, detaches its git
-history, ensures agent-orch is installed + initialised, runs the test gate, and
-leaves a clean repo with one commit:
+1. **Set your printer entity prefix** — open `esphome/round-amoled-466.yaml` and
+   replace `YOUR_PRINTER_ENTITY` in the `substitutions` block with your printer's
+   entity prefix (e.g. `p1s_00m00a000000`).
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/bbk1ng/repo-template/main/install.sh | bash -s myproject
-# or, from a local clone:
-./install.sh myproject
-```
+2. **Compile and flash**
 
-Then:
+   ```bash
+   # Uses esphome on PATH, or falls back to pipx run esphome
+   scripts/compile-esphome.sh
 
-```bash
-cd myproject
-python3 -m unittest discover -s tests   # run the test gate
-orch task "describe the change"          # author + cross-audit + test-gate + merge
-```
+   # Flash a specific device (overrides name/friendly_name substitutions):
+   scripts/compile-esphome.sh bambu-kitchen "Kitchen Bambu Dashboard"
+   ```
 
-`install.sh` removes itself from the new repo. Override the source repo or orch
-package via the `TEMPLATE_REPO` / `ORCH_PKG` env vars.
+3. **Connect to Wi-Fi** — on first boot the device creates a captive-portal AP
+   (`Bambu Round Dashboard 466`). Connect and enter your Wi-Fi credentials.
 
-## The orch loop
+4. **Add to Home Assistant** — the ESPHome integration will auto-discover the device.
 
-`orch task "<change>"` spins up an author agent on its own branch, a reviewer
-agent cross-audits, the test gate (`python3 -m unittest discover -s tests`) must pass,
-then it merges to `main`. Config lives in `.orch/orch.yml`. See
-[agent-orch](https://github.com/bbk1ng/agent-orch) for the full command set.
+## Screens
+
+The LVGL UI contains multiple swipe-able pages:
+
+- **Status** — progress arc, nozzle/bed temperatures, current layer, remaining time
+- **AMS** — four filament slots with material name and swatch colour from the printer
+
+Swipe left/right (or tap the left/right halves of the screen) to switch pages.
+Brightness is adjustable via a Home Assistant number entity exposed by the device.
 
 ## Conventions
 
@@ -56,4 +75,4 @@ then it merges to `main`. Config lives in `.orch/orch.yml`. See
 - **Verify before done** — never mark complete without a passing test.
 - **Capture lessons** — after any correction, add a rule to `tasks/lessons.md`.
 
-See [WORKFLOW-ORCHESTRATION.md](WORKFLOW-ORCHESTRATION.md) for the full workflow.
+See [WORKFLOW-ORCHESTRATION.md](WORKFLOW-ORCHESTRATION.md) for the agent workflow.
