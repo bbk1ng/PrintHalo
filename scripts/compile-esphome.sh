@@ -13,7 +13,6 @@ else
 fi
 
 configs=(
-  "esphome/round-gc9a01a-240.yaml:240"
   "esphome/round-amoled-466.yaml:466"
 )
 

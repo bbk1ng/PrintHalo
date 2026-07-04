@@ -14,13 +14,13 @@ class DashboardSpecTest(unittest.TestCase):
         cls.package = PACKAGE.read_text()
         cls.compile_script = COMPILE_SCRIPT.read_text()
 
-    def test_compile_gate_builds_two_display_widths(self):
+    def test_compile_gate_builds_amoled_board(self):
         self.assertIn('-s display_width "${width}"', self.compile_script)
         self.assertIn('compile "${config}"', self.compile_script)
         self.assertIn("pipx run esphome", self.compile_script)
         self.assertRegex(self.compile_script, r"-s display_width \"?\$\{width\}\"?")
-        self.assertIn("round-gc9a01a-240.yaml:240", self.compile_script)
         self.assertIn("round-amoled-466.yaml:466", self.compile_script)
+        self.assertNotIn("round-gc9a01a-240.yaml", self.compile_script)
 
     def test_tap_only_two_page_navigation(self):
         self.assertIn("page_wrap: true", self.package)
