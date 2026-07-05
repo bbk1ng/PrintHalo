@@ -76,3 +76,8 @@ Brightness is adjustable via a Home Assistant number entity exposed by the devic
 - **Capture lessons** — after any correction, add a rule to `tasks/lessons.md`.
 
 See [WORKFLOW-ORCHESTRATION.md](WORKFLOW-ORCHESTRATION.md) for the agent workflow.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Bundled third-party assets (MDI font, Bambu icon)
+keep their own terms — see [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
