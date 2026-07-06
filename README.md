@@ -23,9 +23,19 @@ Swipe left/right — or tap the left/right half of the glass — to switch pages
 auto-rotates in 90° steps and keeps text upright, and dims to 50% five minutes after a
 print finishes.
 
-**The ring at a glance:** dim grey when idle · live green while printing · calm blue when
-done. It also pulses amber to pause, orange to preheat, purple during bed levelling, and
-red on error.
+## The ring at a glance
+
+One colour tells you the state of a print from across the room:
+
+| ![Idle](docs/assets/state-idle.png) | ![Preheat](docs/assets/state-preheat.png) | ![Levelling](docs/assets/state-leveling.png) | ![Printing](docs/assets/state-printing.png) |
+|:---:|:---:|:---:|:---:|
+| **Idle** — ready, grey | **Preheat** — warming up, orange | **Levelling** — bed mesh, purple | **Printing** — live progress, green |
+
+| ![Paused](docs/assets/state-paused.png) | ![Finished](docs/assets/state-finished.png) | ![Error](docs/assets/state-error.png) | |
+|:---:|:---:|:---:|:---:|
+| **Paused** — on hold, amber | **Finished** — complete, blue | **Error** — [flashing red](docs/assets/state-error.gif), needs attention | |
+
+*(Full overview: [state-tiles.png](docs/assets/state-tiles.png))*
 
 ## Hardware
 
