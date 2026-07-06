@@ -31,7 +31,7 @@ One colour tells you the state of a print from across the room:
 |:---:|:---:|:---:|:---:|
 | **Idle** — ready, grey | **Preheat** — warming up, orange | **Levelling** — bed mesh, purple | **Printing** — live progress, green |
 
-| ![Paused](docs/assets/state-paused.png) | ![Finished](docs/assets/state-finished.png) | ![Error](docs/assets/state-error.png) | |
+| ![Paused](docs/assets/state-paused.png) | ![Finished](docs/assets/state-finished.png) | ![Error](docs/assets/state-error.gif) | |
 |:---:|:---:|:---:|:---:|
 | **Paused** — on hold, amber | **Finished** — complete, blue | **Error** — [flashing red](docs/assets/state-error.gif), needs attention | |
 
