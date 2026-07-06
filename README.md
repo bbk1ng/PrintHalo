@@ -76,3 +76,23 @@ Brightness is adjustable via a Home Assistant number entity exposed by the devic
 - **Capture lessons** — after any correction, add a rule to `tasks/lessons.md`.
 
 See [WORKFLOW-ORCHESTRATION.md](WORKFLOW-ORCHESTRATION.md) for the agent workflow.
+
+## Credits / prior art
+
+This dashboard's two screens are adapted from other open-source projects,
+not built from scratch:
+
+- **Status screen** — layout adapted from [PrintSphere](https://github.com/cptkirki/PrintSphere)
+  (Cpt_Kirk, FNCL non-commercial license). Differences: rotate-on-touch
+  instead of swipe, auto-rotate in 90° steps keeping text upright, 50% dim
+  when no print is active, reworked ETA/elapsed-time presentation.
+- **AMS screen** — adapted from [TurboTime29/bambu-esp32s3-ha-round-dash](https://github.com/TurboTime29/bambu-esp32s3-ha-round-dash)
+  (MIT), scaled from its original 240×240 board to 466×466.
+
+See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for full license terms.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Bundled third-party assets (MDI font, Bambu icon)
+and adapted UI/code from other projects keep their own terms — see
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
