@@ -1,7 +1,7 @@
 substitutions:
   name: bambu-round-amoled
   friendly_name: Bambu Round Dashboard 466
-  bambulab_printer: YOUR_PRINTER_ENTITY
+  bambulab_printer: bambulab_p2s
   screen_size: "466"
   display_width: "466"
   display_height: "466"
