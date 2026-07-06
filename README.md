@@ -10,6 +10,8 @@ layer counts, remaining time, and AMS filament colours on a desk-sized dial.
 
 > Formerly `dashboard-esp32`. Community project — not affiliated with or endorsed by Bambu Lab.
 
+> Built with [agent-orch](https://github.com/bbk1ng/agent-orch) — multi-agent author/audit/test-gate pipeline.
+
 ## Screens
 
 | Status | AMS |
