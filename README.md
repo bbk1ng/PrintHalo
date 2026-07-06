@@ -33,7 +33,7 @@ One colour tells you the state of a print from across the room:
 
 | ![Paused](docs/assets/state-paused.png) | ![Finished](docs/assets/state-finished.png) | ![Error](docs/assets/state-error.gif) | |
 |:---:|:---:|:---:|:---:|
-| **Paused** — on hold, amber | **Finished** — complete, blue | **Error** — [flashing red](docs/assets/state-error.gif), needs attention | |
+| **Paused** — on hold, amber | **Finished** — complete, blue | **Error** — needs attention | |
 
 *(Full overview: [state-tiles.png](docs/assets/state-tiles.png))*
 
