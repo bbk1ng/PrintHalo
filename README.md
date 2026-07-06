@@ -1,9 +1,29 @@
-# dashboard-esp32
+# PrintHalo
 
-An [ESPHome](https://esphome.io) dashboard for **Bambu Lab 3D printers**, built
-for a round 466 × 466 AMOLED display on an ESP32-S3 board. It pulls live print
-data from Home Assistant and shows progress, temperatures, layer counts, AMS tray
-colours, and remaining time on a compact touch screen.
+![PrintHalo — a round Home Assistant dashboard for Bambu Lab printers](docs/assets/printhalo-banner.png)
+
+A round-display **Home Assistant dashboard for Bambu Lab 3D printers**, built for a
+466 × 466 AMOLED on an ESP32-S3. The full-bleed progress ring — the *halo* — tells you
+the state of a print from across the room: green while printing, blue when it's done,
+grey when idle. It pulls live data over Home Assistant and shows progress, temperatures,
+layer counts, remaining time, and AMS filament colours on a desk-sized dial.
+
+> Formerly `dashboard-esp32`. Community project — not affiliated with or endorsed by Bambu Lab.
+
+## Screens
+
+| Status | AMS |
+|:------:|:---:|
+| ![Status screen](docs/assets/screen-status.png) | ![AMS screen](docs/assets/screen-ams.png) |
+| Progress ring, nozzle / bed temps, current layer, elapsed / ETA | Four filament slots with material name and swatch colour from the printer |
+
+Swipe left/right — or tap the left/right half of the glass — to switch pages. The screen
+auto-rotates in 90° steps and keeps text upright, and dims to 50% five minutes after a
+print finishes.
+
+**The ring at a glance:** dim grey when idle · live green while printing · calm blue when
+done. It also pulses amber to pause, orange to preheat, purple during bed levelling, and
+red on error.
 
 ## Hardware
 
@@ -14,24 +34,6 @@ colours, and remaining time on a compact touch screen.
 | Touch | FT63x6 capacitive touch controller (I²C) |
 | IMU | QMI8658 (I²C, used for auto-rotation) |
 
-## Layout
-
-```
-.
-├── esphome/
-│   ├── round-amoled-466.yaml          # top-level ESPHome config for the 466 mm board
-│   ├── packages/
-│   │   └── custom_bambu_dashboard.yaml  # LVGL UI, sensors, AMS colour logic
-│   ├── fonts/
-│   │   └── materialdesignicons-webfont.ttf
-│   └── images/
-│       └── bambuicon.png
-├── scripts/
-│   └── compile-esphome.sh             # build helper (supports multi-device overrides)
-├── tasks/                             # active plan & captured lessons
-└── docs/                              # design notes
-```
-
 ## Prerequisites
 
 - [ESPHome](https://esphome.io/guides/installing_esphome) ≥ 2025.9.0
@@ -40,9 +42,9 @@ colours, and remaining time on a compact touch screen.
 
 ## Quick start
 
-1. **Set your printer entity prefix** — open `esphome/round-amoled-466.yaml` and
-   replace `YOUR_PRINTER_ENTITY` in the `substitutions` block with your printer's
-   entity prefix (e.g. `p1s_00m00a000000`).
+1. **Set your printer entity prefix** — open `esphome/round-amoled-466.yaml` and replace
+   `YOUR_PRINTER_ENTITY` in the `substitutions` block with your printer's entity prefix
+   (e.g. `p1s_00m00a000000`).
 
 2. **Compile and flash**
 
@@ -59,40 +61,20 @@ colours, and remaining time on a compact touch screen.
 
 4. **Add to Home Assistant** — the ESPHome integration will auto-discover the device.
 
-## Screens
-
-The LVGL UI contains multiple swipe-able pages:
-
-- **Status** — progress arc, nozzle/bed temperatures, current layer, remaining time
-- **AMS** — four filament slots with material name and swatch colour from the printer
-
-Swipe left/right (or tap the left/right halves of the screen) to switch pages.
 Brightness is adjustable via a Home Assistant number entity exposed by the device.
-
-## Conventions
-
-- **Plan first** — non-trivial work starts in `tasks/todo.md`.
-- **Verify before done** — never mark complete without a passing test.
-- **Capture lessons** — after any correction, add a rule to `tasks/lessons.md`.
-
-See [WORKFLOW-ORCHESTRATION.md](WORKFLOW-ORCHESTRATION.md) for the agent workflow.
 
 ## Credits / prior art
 
-This dashboard's two screens are adapted from other open-source projects,
-not built from scratch:
+PrintHalo's two screens are adapted from other open-source projects, not built from scratch:
 
 - **Status screen** — layout adapted from [PrintSphere](https://github.com/cptkirki/PrintSphere)
-  (Cpt_Kirk, FNCL non-commercial license). Differences: rotate-on-touch
-  instead of swipe, auto-rotate in 90° steps keeping text upright, 50% dim
-  when no print is active, reworked ETA/elapsed-time presentation.
+  (Cpt_Kirk, FNCL non-commercial license).
 - **AMS screen** — adapted from [TurboTime29/bambu-esp32s3-ha-round-dash](https://github.com/TurboTime29/bambu-esp32s3-ha-round-dash)
-  (MIT), scaled from its original 240×240 board to 466×466.
+  (MIT), scaled from its original 240 × 240 board to 466 × 466.
 
 See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for full license terms.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Bundled third-party assets (MDI font, Bambu icon)
-and adapted UI/code from other projects keep their own terms — see
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+MIT — see [LICENSE](LICENSE). Bundled third-party assets (MDI font, Bambu icon) and adapted
+UI/code from other projects keep their own terms — see [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
