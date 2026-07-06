@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "repo-template"
+name = "printhalo"
 version = "0.1.0"
-description = "Self-bootstrapping repo template wired for agent-orch."
+description = "PrintHalo — ESP32 dashboard for Bambu Lab printers."
 requires-python = ">=3.10"
 license = { text = "MIT" }
 
