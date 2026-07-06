@@ -16,6 +16,8 @@ class TestLicensing(unittest.TestCase):
         text = notice_path.read_text()
         self.assertIn("materialdesignicons-webfont.ttf", text)
         self.assertIn("bambuicon.png", text)
+        self.assertIn("PrintSphere", text)
+        self.assertIn("TurboTime29", text)
 
 
 if __name__ == "__main__":
