@@ -739,8 +739,17 @@ interval:
           bool stage_idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
           bool raw_failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
           bool print_present = running_like || stage_active || (p > 0 && p < 100);
-          if (!raw_failed) id(failed_print_latched) = false;
-          if (raw_failed && (id(failed_print_latched) || id(print_active) || !stage_idleish)) id(failed_print_latched) = true;
+          static uint32_t failed_idle_since = 0;
+          if (!raw_failed) {
+            id(failed_print_latched) = false;
+            failed_idle_since = 0;
+          } else if (stage_idleish && !id(print_active)) {
+            if (failed_idle_since == 0) failed_idle_since = millis();
+            if (millis() - failed_idle_since >= 30UL * 1000UL) id(failed_print_latched) = false;
+          } else {
+            failed_idle_since = 0;
+            if (id(failed_print_latched) || id(print_active) || !stage_idleish) id(failed_print_latched) = true;
+          }
           bool failed = raw_failed && id(failed_print_latched);
           id(print_active) = !done && !raw_failed && print_present;
           static uint32_t inactive_since = 0;

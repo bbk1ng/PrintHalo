@@ -86,6 +86,16 @@ class DashboardSpecTest(unittest.TestCase):
     def visible_failed(raw_failed, stage_idleish, print_active, failed_latched):
         return raw_failed and (failed_latched or print_active or not stage_idleish)
 
+    @staticmethod
+    def next_failed_latch(
+        raw_failed, stage_idleish, print_active, failed_latched, failed_idle_elapsed_ms
+    ):
+        if not raw_failed:
+            return False
+        if stage_idleish and not print_active:
+            return failed_latched and failed_idle_elapsed_ms < 30_000
+        return failed_latched or print_active or not stage_idleish
+
     def test_failed_status_requires_active_or_latched_failure(self):
         raw_failed = (
             'ps.find("fail") != std::string::npos || '
@@ -100,9 +110,15 @@ class DashboardSpecTest(unittest.TestCase):
         self.assertIn(f"bool raw_failed = {raw_failed};", self.package)
         self.assertEqual(self.package.count(display_failed), 3)
         self.assertIn("bool failed = raw_failed && id(failed_print_latched);", self.package)
+        self.assertIn("static uint32_t failed_idle_since = 0;", self.package)
         self.assertIn(
-            "if (raw_failed && (id(failed_print_latched) || id(print_active) || "
-            "!stage_idleish)) id(failed_print_latched) = true;",
+            "if (millis() - failed_idle_since >= 30UL * 1000UL) "
+            "id(failed_print_latched) = false;",
+            self.package,
+        )
+        self.assertIn(
+            "if (id(failed_print_latched) || id(print_active) || !stage_idleish) "
+            "id(failed_print_latched) = true;",
             self.package,
         )
         self.assertIn(
@@ -115,6 +131,12 @@ class DashboardSpecTest(unittest.TestCase):
         self.assertTrue(self.visible_failed(True, True, False, True))
         self.assertTrue(self.visible_failed(True, False, False, False))
         self.assertFalse(self.visible_failed(False, False, True, True))
+
+        self.assertTrue(self.next_failed_latch(True, True, False, True, 29_999))
+        self.assertFalse(self.next_failed_latch(True, True, False, True, 30_000))
+        self.assertTrue(self.next_failed_latch(True, False, False, False, 30_000))
+        self.assertTrue(self.next_failed_latch(True, True, True, False, 30_000))
+        self.assertFalse(self.next_failed_latch(False, True, True, True, 0))
 
     def test_discrete_qmi8658_rotation(self):
         for register in ("0x35", "0x36", "0x37", "0x38", "0x39", "0x3A"):
