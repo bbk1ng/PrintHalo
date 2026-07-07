@@ -11,5 +11,8 @@ __pycache__/
 # session/local scratch
 .remember/
 
+# Claude Code local/per-user settings — .claude/settings.json is shared
+.claude/settings.local.json
+
 # ESPHome local secrets (per-user printer entity, etc.)
 esphome/secrets.yaml
