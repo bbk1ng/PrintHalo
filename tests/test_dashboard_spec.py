@@ -65,7 +65,14 @@ class DashboardSpecTest(unittest.TestCase):
         for slot in range(1, 5):
             self.assertIn(f"sensor.${{bambulab_printer}}_ams_tray_{slot}", self.package)
             self.assertIn(f"id: ams_tray_{slot}_color", self.package)
-        self.assertEqual(self.package.count("attribute: color"), 4)
+            self.assertRegex(
+                self.package,
+                re.compile(
+                    rf"id: ams_tray_{slot}_color\n"
+                    rf"\s+entity_id: sensor\.\$\{{bambulab_printer\}}_ams_tray_{slot}\n"
+                    r"\s+attribute: color"
+                ),
+            )
         self.assertIn("r * 299 + g * 587 + b * 114", self.package)
 
     def test_dimming_is_multiplier_on_configured_brightness(self):
@@ -74,6 +81,21 @@ class DashboardSpecTest(unittest.TestCase):
         self.assertIn("level *= 0.50f", self.package)
         self.assertIn("id(display_dimmed) = should_dim", self.package)
         self.assertIn("id(print_active)", self.package)
+
+    def test_stale_failed_status_is_ignored_when_stage_is_idle(self):
+        raw_failed = (
+            'ps.find("fail") != std::string::npos || '
+            'ps.find("error") != std::string::npos'
+        )
+        guarded_failed = f"bool failed = ({raw_failed}) && !stage_idleish;"
+        idleish = (
+            'bool stage_idleish = stage.find("idle") != std::string::npos || '
+            'stage.find("offline") != std::string::npos;'
+        )
+
+        self.assertEqual(self.package.count(guarded_failed), 4)
+        self.assertEqual(self.package.count(idleish), 4)
+        self.assertNotIn(f"if ({raw_failed})", self.package)
 
     def test_discrete_qmi8658_rotation(self):
         for register in ("0x35", "0x36", "0x37", "0x38", "0x39", "0x3A"):
