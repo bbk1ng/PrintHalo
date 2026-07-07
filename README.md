@@ -54,9 +54,13 @@ One colour tells you the state of a print from across the room:
 
 ## Quick start
 
-1. **Set your printer entity prefix** — open `esphome/round-amoled-466.yaml` and replace
-   `YOUR_PRINTER_ENTITY` in the `substitutions` block with your printer's entity prefix
-   (e.g. `p1s_00m00a000000`).
+1. **Set your printer entity prefix** — copy `esphome/secrets.yaml.example` to
+   `esphome/secrets.yaml` (gitignored, so it survives `git pull` and isn't published) and
+   replace `YOUR_PRINTER_ENTITY` with your printer's entity prefix (e.g. `p1s_00m00a000000`).
+
+   ```bash
+   cp esphome/secrets.yaml.example esphome/secrets.yaml
+   ```
 
 2. **Compile and flash**
 

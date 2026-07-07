@@ -10,3 +10,6 @@ __pycache__/
 
 # session/local scratch
 .remember/
+
+# ESPHome local secrets (per-user printer entity, etc.)
+esphome/secrets.yaml
