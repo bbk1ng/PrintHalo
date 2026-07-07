@@ -17,7 +17,10 @@ font:
   - file: { type: gfonts, family: Dosis, weight: 700 }
     id: font_dosis_32
     size: 32
-    glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
+    glyphs: "0123456789:%+abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
+    extras:
+      - file: fonts/materialdesignicons-webfont.ttf
+        glyphs: ["\U000F144E"]
   - file: { type: gfonts, family: Dosis, weight: 700 }
     id: font_dosis_40
     size: 40
@@ -43,6 +46,10 @@ globals:
     restore_value: no
     initial_value: "false"
   - id: print_active
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: failed_print_latched
     type: bool
     restore_value: no
     initial_value: "false"
@@ -305,6 +312,30 @@ text_sensor:
             lv_obj_set_style_bg_color(id(ams_slot_4_box), lv_color_hex(rgb), LV_PART_MAIN);
             lv_obj_set_style_text_color(id(ams_slot_4_label), lv_color_hex(text), LV_PART_MAIN);
 
+  - platform: homeassistant
+    id: active_filament
+    entity_id: sensor.${bambulab_printer}_active_tray
+    internal: true
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: filament_label
+            text: !lambda return x;
+  - platform: homeassistant
+    id: active_filament_color
+    entity_id: sensor.${bambulab_printer}_active_tray
+    attribute: color
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            std::string c = x;
+            if (!c.empty() && c[0] == '#') c.erase(0, 1);
+            if (c.rfind("0x", 0) == 0 || c.rfind("0X", 0) == 0) c.erase(0, 2);
+            if (c.size() == 8) c.erase(6);  // strip RGBA alpha suffix
+            uint32_t rgb = strtoul(c.c_str(), nullptr, 16);
+            lv_obj_set_style_text_color(id(filament_label), lv_color_hex(rgb), LV_PART_MAIN);
+
 lvgl:
   id: lvgl_id
   color_depth: 16
@@ -389,11 +420,11 @@ lvgl:
                   text_font: font_dosis_32
                   text_color: 0xAAAAAA
               - label:
-                  id: stage_label
+                  id: filament_label
                   align: CENTER
-                  y: 8%
-                  hidden: true
-                  text: "waiting"
+                  y: 6%
+                  text: "--"
+                  text_font: font_dosis_20
                   text_color: 0xDDDDDD
               - label:
                   id: nozzle_icon
@@ -435,18 +466,9 @@ lvgl:
                   text_font: font_dosis_32
                   text_color: 0xDDDDDD
               - label:
-                  id: remaining_icon
-                  align: CENTER
-                  x: -7%
-                  y: 36%
-                  text: "\U000F144E"
-                  text_font: font_mdi_40
-                  text_color: 0x87CEEB
-              - label:
                   id: remaining_label
                   align: CENTER
-                  x: 6%
-                  y: 36%
+                  y: 34%
                   text: "--m"
                   text_font: font_dosis_32
                   text_align: CENTER
@@ -641,7 +663,10 @@ interval:
             return;
           }
 
-          if (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) {
+          bool stage_idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
+          bool raw_failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
+          bool failed = raw_failed && (id(failed_print_latched) || id(print_active) || !stage_idleish);
+          if (failed) {
             uint32_t c = pulse_between(0x220000, 0xFF3333, 1600);
             set_ring(c, c);
             return;
@@ -669,8 +694,7 @@ interval:
             set_ring(0x00BFFF, 0x00BFFF);
             return;
           }
-          bool idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
-          if (idleish && !id(print_active)) {
+          if (stage_idleish && !id(print_active)) {
             set_ring(0x404040, 0x404040);
             return;
           }
@@ -701,7 +725,6 @@ interval:
           bool done = ps.find("finish") != std::string::npos &&
                       (stage.find("idle") != std::string::npos || stage.empty()) &&
                       p >= 100;
-          bool failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
           bool running_like = ps.find("running") != std::string::npos ||
                               ps.find("printing") != std::string::npos ||
                               ps.find("prepare") != std::string::npos ||
@@ -713,7 +736,22 @@ interval:
                               stage.find("bed_level") != std::string::npos ||
                               stage.find("filament_loading") != std::string::npos ||
                               stage.find("filament_unloading") != std::string::npos;
-          id(print_active) = !done && !failed && (running_like || stage_active || (p > 0 && p < 100));
+          bool stage_idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
+          bool raw_failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
+          bool print_present = running_like || stage_active || (p > 0 && p < 100);
+          static uint32_t failed_idle_since = 0;
+          if (!raw_failed) {
+            id(failed_print_latched) = false;
+            failed_idle_since = 0;
+          } else if (stage_idleish && !id(print_active)) {
+            if (failed_idle_since == 0) failed_idle_since = millis();
+            if (millis() - failed_idle_since >= 30UL * 1000UL) id(failed_print_latched) = false;
+          } else {
+            failed_idle_since = 0;
+            if (id(failed_print_latched) || id(print_active) || !stage_idleish) id(failed_print_latched) = true;
+          }
+          bool failed = raw_failed && id(failed_print_latched);
+          id(print_active) = !done && !raw_failed && print_present;
           static uint32_t inactive_since = 0;
           bool should_dim = false;
           if (id(print_active)) {
@@ -757,7 +795,11 @@ interval:
           text: !lambda |-
             auto lower = [](std::string s) { for (auto &c : s) c = (char)tolower((unsigned char)c); return s; };
             std::string ps = id(print_status).has_state() ? lower(id(print_status).state) : "";
-            if (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) return std::string("error");
+            std::string stage = id(current_stage).has_state() ? lower(id(current_stage).state) : "";
+            bool stage_idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
+            bool raw_failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
+            bool failed = raw_failed && (id(failed_print_latched) || id(print_active) || !stage_idleish);
+            if (failed) return std::string("error");
             if (ps.find("pause") != std::string::npos) return std::string("paused");
             if (ps.find("prepare") != std::string::npos) return std::string("preparing");
             if (ps.find("running") != std::string::npos || ps.find("printing") != std::string::npos) return std::string("printing");
@@ -766,19 +808,17 @@ interval:
       - lambda: |-
           auto lower = [](std::string s) { for (auto &c : s) c = (char)tolower((unsigned char)c); return s; };
           std::string ps = id(print_status).has_state() ? lower(id(print_status).state) : "";
+          std::string stage = id(current_stage).has_state() ? lower(id(current_stage).state) : "";
+          bool stage_idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
+          bool raw_failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
+          bool failed = raw_failed && (id(failed_print_latched) || id(print_active) || !stage_idleish);
           uint32_t col = 0xAAAAAA;
-          if (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) col = 0xFF3333;
+          if (failed) col = 0xFF3333;
           else if (ps.find("pause") != std::string::npos) col = 0xFFA500;
           else if (ps.find("prepare") != std::string::npos) col = 0xFFD54F;
           else if (ps.find("running") != std::string::npos || ps.find("printing") != std::string::npos) col = 0xFFFFFF;
           else if (ps.find("finish") != std::string::npos) col = 0x00BFFF;
           lv_obj_set_style_text_color(id(status_label), lv_color_hex(col), LV_PART_MAIN);
-      - lvgl.label.update:
-          id: stage_label
-          text: !lambda |-
-            std::string s = id(current_stage).has_state() ? id(current_stage).state : "waiting";
-            for (auto &c : s) if (c == '_' || c == '-') c = ' ';
-            return s.substr(0, 22);
       - lvgl.label.update:
           id: remaining_label
           text: !lambda |-
@@ -789,15 +829,19 @@ interval:
             }
             if (!id(print_active)) return std::string("--");
             if (!id(remaining_time).has_state()) return std::string("--m");
-            int rem = (int) id(remaining_time).state;
+            int rem = (int) (id(remaining_time).state * 60.0f);  // sensor unit is hours
             if (rem < 0) rem = 0;
-            char buf[40];
+            char buf[64];
             auto now = id(ha_time).now();
             if (!now.is_valid()) {
-              snprintf(buf, sizeof(buf), "%dm", rem);
+              snprintf(buf, sizeof(buf), "\U000F144E %dm", rem);
               return std::string(buf);
             }
             auto eta = ESPTime::from_epoch_local(now.timestamp + (time_t) rem * 60);
+            auto today = ESPTime::from_epoch_local(now.timestamp);
+            bool tomorrow = ((uint32_t) eta.year * 1000 + eta.day_of_year) >
+                            ((uint32_t) today.year * 1000 + today.day_of_year);
+            const char *plus = tomorrow ? "+1" : "";
             int elapsed = -1;
             if (id(start_time_iso).has_state()) {
               int Y, Mo, D, H, Mi, S;
@@ -813,10 +857,13 @@ interval:
                 if (elapsed < 0) elapsed = 0;
               }
             }
-            if (elapsed >= 0)
-              snprintf(buf, sizeof(buf), "%d/%dm\nETA %02d:%02d", elapsed, elapsed + rem, eta.hour, eta.minute);
-            else
-              snprintf(buf, sizeof(buf), "%dm\nETA %02d:%02d", rem, eta.hour, eta.minute);
+            if (elapsed >= 0) {
+              int total = elapsed + rem;
+              snprintf(buf, sizeof(buf), "\U000F144E %d:%02d/%d:%02d\nETA %02d:%02d%s",
+                       elapsed / 60, elapsed % 60, total / 60, total % 60, eta.hour, eta.minute, plus);
+            } else {
+              snprintf(buf, sizeof(buf), "\U000F144E %dm\nETA %02d:%02d%s", rem, eta.hour, eta.minute, plus);
+            }
             return std::string(buf);
       - lvgl.label.update:
           id: layer_label

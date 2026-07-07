@@ -18,7 +18,7 @@ agents: [claude, codex]   # default: [claude, codex]
 # reviewers: [claude, codex high]          # all audit each branch, except its author
 
 # === Cycle ===
-test: python3 -m unittest discover -s tests && ./scripts/compile-esphome.sh   # unit tests plus ESPHome 240/466 compile gate
+test: ./scripts/orch-gate.sh   # unittest + ESPHome compile; orch's gate runner has no shell, so `&&` here was a literal argv token — always failed
 reviseCap: 3              # max revise rounds before escalation (positive integer); default: 3
 merge: no-ff              # merge into main: ff-only | no-ff; default: no-ff (concurrent disjoint cycles both land; ff-only = linear but extra cycles fall back to PR)
 concurrency: 4            # max concurrent orch cycles in this repo dir; over this a cycle exits; default: 4
@@ -30,7 +30,7 @@ scope:
 
 # === GitHub PR bridge (orch pr <n>) ===
 github:
-  mergeMethod: squash     # gh pr merge strategy: squash | merge | rebase; default: squash
+  mergeMethod: merge      # merge commit keeps orch/integration an ancestor of main; squash breaks ancestry → add/add conflicts in test gate
 
 # === Auto docs-update after a real merge (optional) ===
 docs:

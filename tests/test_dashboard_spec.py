@@ -65,7 +65,14 @@ class DashboardSpecTest(unittest.TestCase):
         for slot in range(1, 5):
             self.assertIn(f"sensor.${{bambulab_printer}}_ams_tray_{slot}", self.package)
             self.assertIn(f"id: ams_tray_{slot}_color", self.package)
-        self.assertEqual(self.package.count("attribute: color"), 4)
+            self.assertRegex(
+                self.package,
+                re.compile(
+                    rf"id: ams_tray_{slot}_color\n"
+                    rf"\s+entity_id: sensor\.\$\{{bambulab_printer\}}_ams_tray_{slot}\n"
+                    r"\s+attribute: color"
+                ),
+            )
         self.assertIn("r * 299 + g * 587 + b * 114", self.package)
 
     def test_dimming_is_multiplier_on_configured_brightness(self):
@@ -74,6 +81,62 @@ class DashboardSpecTest(unittest.TestCase):
         self.assertIn("level *= 0.50f", self.package)
         self.assertIn("id(display_dimmed) = should_dim", self.package)
         self.assertIn("id(print_active)", self.package)
+
+    @staticmethod
+    def visible_failed(raw_failed, stage_idleish, print_active, failed_latched):
+        return raw_failed and (failed_latched or print_active or not stage_idleish)
+
+    @staticmethod
+    def next_failed_latch(
+        raw_failed, stage_idleish, print_active, failed_latched, failed_idle_elapsed_ms
+    ):
+        if not raw_failed:
+            return False
+        if stage_idleish and not print_active:
+            return failed_latched and failed_idle_elapsed_ms < 30_000
+        return failed_latched or print_active or not stage_idleish
+
+    def test_failed_status_requires_active_or_latched_failure(self):
+        raw_failed = (
+            'ps.find("fail") != std::string::npos || '
+            'ps.find("error") != std::string::npos'
+        )
+        display_failed = (
+            "bool failed = raw_failed && "
+            "(id(failed_print_latched) || id(print_active) || !stage_idleish);"
+        )
+
+        self.assertIn("id: failed_print_latched", self.package)
+        self.assertIn(f"bool raw_failed = {raw_failed};", self.package)
+        self.assertEqual(self.package.count(display_failed), 3)
+        self.assertIn("bool failed = raw_failed && id(failed_print_latched);", self.package)
+        self.assertIn("static uint32_t failed_idle_since = 0;", self.package)
+        self.assertIn(
+            "if (millis() - failed_idle_since >= 30UL * 1000UL) "
+            "id(failed_print_latched) = false;",
+            self.package,
+        )
+        self.assertIn(
+            "if (id(failed_print_latched) || id(print_active) || !stage_idleish) "
+            "id(failed_print_latched) = true;",
+            self.package,
+        )
+        self.assertIn(
+            "id(print_active) = !done && !raw_failed && print_present;",
+            self.package,
+        )
+
+        self.assertFalse(self.visible_failed(True, True, False, False))
+        self.assertTrue(self.visible_failed(True, True, True, False))
+        self.assertTrue(self.visible_failed(True, True, False, True))
+        self.assertTrue(self.visible_failed(True, False, False, False))
+        self.assertFalse(self.visible_failed(False, False, True, True))
+
+        self.assertTrue(self.next_failed_latch(True, True, False, True, 29_999))
+        self.assertFalse(self.next_failed_latch(True, True, False, True, 30_000))
+        self.assertTrue(self.next_failed_latch(True, False, False, False, 30_000))
+        self.assertTrue(self.next_failed_latch(True, True, True, False, 30_000))
+        self.assertFalse(self.next_failed_latch(False, True, True, True, 0))
 
     def test_discrete_qmi8658_rotation(self):
         for register in ("0x35", "0x36", "0x37", "0x38", "0x39", "0x3A"):
