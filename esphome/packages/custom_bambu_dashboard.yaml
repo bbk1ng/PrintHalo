@@ -49,6 +49,10 @@ globals:
     type: bool
     restore_value: no
     initial_value: "false"
+  - id: failed_print_latched
+    type: bool
+    restore_value: no
+    initial_value: "false"
   - id: ui_col_now
     type: uint32_t
     restore_value: no
@@ -660,7 +664,8 @@ interval:
           }
 
           bool stage_idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
-          bool failed = (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) && !stage_idleish;
+          bool raw_failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
+          bool failed = raw_failed && (id(failed_print_latched) || id(print_active) || !stage_idleish);
           if (failed) {
             uint32_t c = pulse_between(0x220000, 0xFF3333, 1600);
             set_ring(c, c);
@@ -720,8 +725,6 @@ interval:
           bool done = ps.find("finish") != std::string::npos &&
                       (stage.find("idle") != std::string::npos || stage.empty()) &&
                       p >= 100;
-          bool stage_idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
-          bool failed = (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) && !stage_idleish;
           bool running_like = ps.find("running") != std::string::npos ||
                               ps.find("printing") != std::string::npos ||
                               ps.find("prepare") != std::string::npos ||
@@ -733,7 +736,13 @@ interval:
                               stage.find("bed_level") != std::string::npos ||
                               stage.find("filament_loading") != std::string::npos ||
                               stage.find("filament_unloading") != std::string::npos;
-          id(print_active) = !done && !failed && (running_like || stage_active || (p > 0 && p < 100));
+          bool stage_idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
+          bool raw_failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
+          bool print_present = running_like || stage_active || (p > 0 && p < 100);
+          if (!raw_failed) id(failed_print_latched) = false;
+          if (raw_failed && (id(failed_print_latched) || id(print_active) || !stage_idleish)) id(failed_print_latched) = true;
+          bool failed = raw_failed && id(failed_print_latched);
+          id(print_active) = !done && !raw_failed && print_present;
           static uint32_t inactive_since = 0;
           bool should_dim = false;
           if (id(print_active)) {
@@ -779,7 +788,8 @@ interval:
             std::string ps = id(print_status).has_state() ? lower(id(print_status).state) : "";
             std::string stage = id(current_stage).has_state() ? lower(id(current_stage).state) : "";
             bool stage_idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
-            bool failed = (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) && !stage_idleish;
+            bool raw_failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
+            bool failed = raw_failed && (id(failed_print_latched) || id(print_active) || !stage_idleish);
             if (failed) return std::string("error");
             if (ps.find("pause") != std::string::npos) return std::string("paused");
             if (ps.find("prepare") != std::string::npos) return std::string("preparing");
@@ -791,7 +801,8 @@ interval:
           std::string ps = id(print_status).has_state() ? lower(id(print_status).state) : "";
           std::string stage = id(current_stage).has_state() ? lower(id(current_stage).state) : "";
           bool stage_idleish = stage.find("idle") != std::string::npos || stage.find("offline") != std::string::npos;
-          bool failed = (ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos) && !stage_idleish;
+          bool raw_failed = ps.find("fail") != std::string::npos || ps.find("error") != std::string::npos;
+          bool failed = raw_failed && (id(failed_print_latched) || id(print_active) || !stage_idleish);
           uint32_t col = 0xAAAAAA;
           if (failed) col = 0xFF3333;
           else if (ps.find("pause") != std::string::npos) col = 0xFFA500;

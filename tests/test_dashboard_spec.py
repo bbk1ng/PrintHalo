@@ -82,20 +82,39 @@ class DashboardSpecTest(unittest.TestCase):
         self.assertIn("id(display_dimmed) = should_dim", self.package)
         self.assertIn("id(print_active)", self.package)
 
-    def test_stale_failed_status_is_ignored_when_stage_is_idle(self):
+    @staticmethod
+    def visible_failed(raw_failed, stage_idleish, print_active, failed_latched):
+        return raw_failed and (failed_latched or print_active or not stage_idleish)
+
+    def test_failed_status_requires_active_or_latched_failure(self):
         raw_failed = (
             'ps.find("fail") != std::string::npos || '
             'ps.find("error") != std::string::npos'
         )
-        guarded_failed = f"bool failed = ({raw_failed}) && !stage_idleish;"
-        idleish = (
-            'bool stage_idleish = stage.find("idle") != std::string::npos || '
-            'stage.find("offline") != std::string::npos;'
+        display_failed = (
+            "bool failed = raw_failed && "
+            "(id(failed_print_latched) || id(print_active) || !stage_idleish);"
         )
 
-        self.assertEqual(self.package.count(guarded_failed), 4)
-        self.assertEqual(self.package.count(idleish), 4)
-        self.assertNotIn(f"if ({raw_failed})", self.package)
+        self.assertIn("id: failed_print_latched", self.package)
+        self.assertIn(f"bool raw_failed = {raw_failed};", self.package)
+        self.assertEqual(self.package.count(display_failed), 3)
+        self.assertIn("bool failed = raw_failed && id(failed_print_latched);", self.package)
+        self.assertIn(
+            "if (raw_failed && (id(failed_print_latched) || id(print_active) || "
+            "!stage_idleish)) id(failed_print_latched) = true;",
+            self.package,
+        )
+        self.assertIn(
+            "id(print_active) = !done && !raw_failed && print_present;",
+            self.package,
+        )
+
+        self.assertFalse(self.visible_failed(True, True, False, False))
+        self.assertTrue(self.visible_failed(True, True, True, False))
+        self.assertTrue(self.visible_failed(True, True, False, True))
+        self.assertTrue(self.visible_failed(True, False, False, False))
+        self.assertFalse(self.visible_failed(False, False, True, True))
 
     def test_discrete_qmi8658_rotation(self):
         for register in ("0x35", "0x36", "0x37", "0x38", "0x39", "0x3A"):
