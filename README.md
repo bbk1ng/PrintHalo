@@ -114,6 +114,40 @@ only a small per-device YAML lives in your Home Assistant config.
 
 Brightness is adjustable via a Home Assistant number entity exposed by the device.
 
+### Versioning & update visibility
+
+Every push to `main` that touches `esphome/` gets stamped by a GitHub Action with a
+version like `2026.7.18-5a9e521` (date + short commit SHA), written both into the
+package substitution `printhalo_version` and into
+[`esphome/version.txt`](esphome/version.txt).
+
+- **Installed** — each device exposes a diagnostic *PrintHalo Version* text sensor
+  reporting the version it was compiled from.
+- **Latest** — poll `https://raw.githubusercontent.com/bbk1ng/PrintHalo/main/esphome/version.txt`
+  with a Home Assistant [REST sensor](https://www.home-assistant.io/integrations/rest/)
+  and compare:
+
+  ```yaml
+  sensor:
+    - platform: rest
+      name: PrintHalo latest version
+      resource: https://raw.githubusercontent.com/bbk1ng/PrintHalo/main/esphome/version.txt
+      value_template: "{{ value | trim }}"
+      scan_interval: 3600
+
+  template:
+    - binary_sensor:
+        - name: PrintHalo update available
+          device_class: update
+          state: >
+            {{ states('sensor.printhalo_latest_version') not in ['unknown', 'unavailable']
+               and states('sensor.YOUR_DEVICE_printhalo_version') not in ['unknown', 'unavailable']
+               and states('sensor.YOUR_DEVICE_printhalo_version') != states('sensor.printhalo_latest_version') }}
+  ```
+
+  The mismatch stays visible even if you raise `refresh:` on the package — the sensor
+  tells you the device is behind regardless of how often ESPHome re-pulls the repo.
+
 ## Quick start — standalone CLI
 
 1. **Set your printer entity prefix** — copy `esphome/secrets.yaml.example` to

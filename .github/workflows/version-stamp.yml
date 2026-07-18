@@ -1,0 +1,37 @@
+name: Stamp version
+
+# Writes the current date + short SHA into the ESPHome package substitution
+# and esphome/version.txt so devices report the installed version and Home
+# Assistant can compare it against the latest on the repo.
+#
+# Loop safety: the stamp commit is pushed with the default GITHUB_TOKEN,
+# which never triggers workflows; the actor guard and [skip ci] are belt
+# and braces.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "esphome/**"
+
+jobs:
+  stamp:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stamp version into package and version.txt
+        run: |
+          VERSION="$(date -u +%Y.%-m.%-d)-${GITHUB_SHA::7}"
+          sed -i "s/^  printhalo_version: .*/  printhalo_version: \"$VERSION\"/" esphome/packages/custom_bambu_dashboard.yaml
+          echo "$VERSION" > esphome/version.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add esphome/packages/custom_bambu_dashboard.yaml esphome/version.txt
+          git diff --cached --quiet || {
+            git commit -m "chore: stamp version $VERSION [skip ci]"
+            git push
+          }

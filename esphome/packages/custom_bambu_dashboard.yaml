@@ -1,4 +1,6 @@
 substitutions:
+  # Stamped by .github/workflows/version-stamp.yml on every push to main.
+  printhalo_version: "dev"
   bambulab_printer: YOUR_PRINTER_ENTITY
   screen_size: "320"
   display_width: "${screen_size}"
@@ -8,6 +10,11 @@ substitutions:
   brightness_default: "70"
   # degrees added to IMU-derived rotation so USB-C-down displays upright
   rotation_offset: "0"
+
+esphome:
+  project:
+    name: bbk1ng.printhalo
+    version: ${printhalo_version}
 
 font:
   - file: { type: gfonts, family: Dosis, weight: 700 }
@@ -136,6 +143,12 @@ time:
     id: ha_time
 
 text_sensor:
+  - platform: template
+    name: PrintHalo Version
+    id: printhalo_version_sensor
+    entity_category: diagnostic
+    update_interval: 6h
+    lambda: 'return {"${printhalo_version}"};'
   - platform: homeassistant
     id: start_time_iso
     entity_id: sensor.${bambulab_printer}_start_time
