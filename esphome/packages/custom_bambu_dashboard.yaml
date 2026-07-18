@@ -32,7 +32,8 @@ font:
     glyphs: ["\U000F144E", "\U000F0E5B", "\U000F185B"]
 
 image:
-  - file: images/bambuicon.png
+  - platform: file
+    file: images/bambuicon.png
     id: img_bambu_logo
     type: RGB565
 
