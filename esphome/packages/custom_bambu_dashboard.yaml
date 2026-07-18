@@ -19,13 +19,13 @@ font:
     size: 32
     glyphs: "0123456789:%+abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
     extras:
-      - file: fonts/materialdesignicons-webfont.ttf
+      - file: https://raw.githubusercontent.com/bbk1ng/PrintHalo/main/esphome/fonts/materialdesignicons-webfont.ttf
         glyphs: ["\U000F144E"]
   - file: { type: gfonts, family: Dosis, weight: 700 }
     id: font_dosis_40
     size: 40
     glyphs: "0123456789:%abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ °-./_"
-  - file: fonts/materialdesignicons-webfont.ttf
+  - file: https://raw.githubusercontent.com/bbk1ng/PrintHalo/main/esphome/fonts/materialdesignicons-webfont.ttf
     id: font_mdi_40
     size: 40
     bpp: 4
@@ -33,7 +33,7 @@ font:
 
 image:
   - platform: file
-    file: images/bambuicon.png
+    file: https://raw.githubusercontent.com/bbk1ng/PrintHalo/main/esphome/images/bambuicon.png
     id: img_bambu_logo
     type: RGB565
 
