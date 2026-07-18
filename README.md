@@ -52,7 +52,69 @@ One colour tells you the state of a print from across the room:
 - Home Assistant with the [Bambu Lab integration](https://github.com/greghesp/ha-bambulab)
   installed and your printer configured
 
-## Quick start
+## Quick start — Home Assistant ESPHome add-on (recommended)
+
+No clone needed. The device config is pulled straight from this repo as an
+[ESPHome remote package](https://esphome.io/components/packages.html#remote-git-packages);
+only a small per-device YAML lives in your Home Assistant config.
+
+1. **Add your secrets** — in the ESPHome dashboard open `secrets.yaml` (or edit
+   `/config/esphome/secrets.yaml`) and make sure it contains:
+
+   ```yaml
+   wifi_ssid: "YourWifi"
+   wifi_password: "YourPassword"
+   # Your printer's entity prefix from the Bambu Lab integration,
+   # e.g. p1s_00m00a000000 (Settings > Devices & Services > Bambu Lab)
+   bambulab_printer: YOUR_PRINTER_ENTITY
+   ```
+
+   The repo's own `esphome/secrets.yaml` is gitignored, so `!secret` references in the
+   remote package resolve against your local file.
+
+2. **Create a device file** — e.g. `/config/esphome/printhalo.yaml`:
+
+   ```yaml
+   substitutions:
+     name: printhalo
+     friendly_name: PrintHalo
+     # per-device overrides go here, e.g. brightness_default: "70"
+
+   packages:
+     printhalo:
+       url: https://github.com/bbk1ng/PrintHalo
+       ref: main
+       files: [esphome/round-amoled-466.yaml]
+       refresh: 1d
+
+   wifi:
+     ssid: !secret wifi_ssid
+     password: !secret wifi_password
+   ```
+
+   `refresh: 1d` re-pulls this repo daily; use *Clean Build Files* in the ESPHome
+   dashboard to force an update.
+
+3. **Multiple devices** — one file per device from the same package. Give each a unique
+   `name`/`friendly_name` substitution, and optionally pin its IP for OTA:
+
+   ```yaml
+   substitutions:
+     name: printhalo-kitchen
+     friendly_name: PrintHalo Kitchen
+
+   wifi:
+     ssid: !secret wifi_ssid
+     password: !secret wifi_password
+     use_address: 192.168.1.155
+   ```
+
+4. **Install** — first time over USB from the ESPHome dashboard, OTA afterwards. The
+   ESPHome integration auto-discovers the device in Home Assistant.
+
+Brightness is adjustable via a Home Assistant number entity exposed by the device.
+
+## Quick start — standalone CLI
 
 1. **Set your printer entity prefix** — copy `esphome/secrets.yaml.example` to
    `esphome/secrets.yaml` (gitignored, so it survives `git pull` and isn't published) and
@@ -76,8 +138,6 @@ One colour tells you the state of a print from across the room:
    (`Bambu Round Dashboard 466`). Connect and enter your Wi-Fi credentials.
 
 4. **Add to Home Assistant** — the ESPHome integration will auto-discover the device.
-
-Brightness is adjustable via a Home Assistant number entity exposed by the device.
 
 ## Credits / prior art
 
