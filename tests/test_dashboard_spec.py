@@ -75,12 +75,14 @@ class DashboardSpecTest(unittest.TestCase):
             )
         self.assertIn("r * 299 + g * 587 + b * 114", self.package)
 
-    def test_dimming_is_multiplier_on_configured_brightness(self):
+    def test_brightness_exposed_without_firmware_dimming(self):
         self.assertIn("id: configured_brightness", self.package)
         self.assertIn("id: brightness_control", self.package)
-        self.assertIn("level *= 0.50f", self.package)
-        self.assertIn("id(display_dimmed) = should_dim", self.package)
         self.assertIn("id(print_active)", self.package)
+        # Dimming is owned by Home Assistant automations via the exposed
+        # brightness number entity; no dim logic lives in firmware.
+        self.assertNotIn("display_dimmed", self.package)
+        self.assertNotIn("should_dim", self.package)
 
     @staticmethod
     def visible_failed(raw_failed, stage_idleish, print_active, failed_latched):

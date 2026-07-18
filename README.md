@@ -20,8 +20,8 @@ layer counts, remaining time, and AMS filament colours on a desk-sized dial.
 | Progress ring, nozzle / bed temps, current layer, elapsed / ETA | Four filament slots with material name and swatch colour from the printer |
 
 Swipe left/right — or tap the left/right half of the glass — to switch pages. The screen
-auto-rotates in 90° steps and keeps text upright, and dims to 50% five minutes after a
-print finishes.
+auto-rotates in 90° steps and keeps text upright. Brightness is exposed to Home Assistant
+as a number entity — automate dimming there (e.g. dim after a print finishes).
 
 ## The ring at a glance
 

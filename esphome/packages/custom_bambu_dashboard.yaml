@@ -42,10 +42,6 @@ globals:
     type: float
     restore_value: yes
     initial_value: "${brightness_default}"
-  - id: display_dimmed
-    type: bool
-    restore_value: no
-    initial_value: "false"
   - id: print_active
     type: bool
     restore_value: no
@@ -80,7 +76,6 @@ script:
     then:
       - lambda: |-
           float level = id(configured_brightness) / 100.0f;
-          if (id(display_dimmed)) level *= 0.50f;
           if (level < 0.01f) level = 0.01f;
           if (level > 1.0f) level = 1.0f;
           id(round_display).set_brightness((uint8_t) (level * 255));
@@ -753,15 +748,6 @@ interval:
           }
           bool failed = raw_failed && id(failed_print_latched);
           id(print_active) = !done && !raw_failed && print_present;
-          static uint32_t inactive_since = 0;
-          bool should_dim = false;
-          if (id(print_active)) {
-            inactive_since = 0;
-          } else {
-            if (inactive_since == 0) inactive_since = millis();
-            should_dim = (millis() - inactive_since) >= 5UL * 60UL * 1000UL;
-          }
-          if (id(display_dimmed) != should_dim) id(display_dimmed) = should_dim;
 
           uint32_t target = 0x00FF00;
           if (ps.find("pause") != std::string::npos) target = 0xFFD54F;
@@ -771,7 +757,6 @@ interval:
           else if (stage.find("bed_level") != std::string::npos) target = 0xAA66FF;
           else if (!id(print_active)) target = 0x666666;
           id(ui_col_target) = target;
-      - script.execute: apply_backlight
       - lvgl.arc.update:
           id: progress_arc
           value: !lambda |-
