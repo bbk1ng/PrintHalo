@@ -5,10 +5,25 @@ file current — it is loaded into context every session.
 
 ## What this is
 
-<!-- Replace this section with a one-paragraph description of the project:
-     what it does, the stack, and where the entry points are. -->
+PrintHalo (formerly `dashboard-esp32`) — a round Home Assistant dashboard for Bambu Lab
+3D printers. Targets a 466×466 MIPI-SPI AMOLED (CO5300, quad-SPI) on an ESP32-S3 (octal
+PSRAM, 80 MHz), with FT63x6 capacitive touch and a QMI8658 IMU for auto-rotation. Pulls
+live print state over Home Assistant (via the
+[Bambu Lab integration](https://github.com/greghesp/ha-bambulab)) and renders a
+full-bleed progress ring plus temps, layer count, ETA, and AMS filament colours. Shipped
+as an ESPHome remote package — device entry point is `esphome/round-amoled-466.yaml`;
+consumers add a small per-device YAML in their own HA config (see README.md).
 
-A project scaffolded from `repo-template`, wired for agent-orch.
+### ESPHome builds
+
+- Compile: `scripts/compile-esphome.sh [device-name] [friendly-name]` — wraps
+  `esphome ... compile esphome/round-amoled-466.yaml` (falls back to `pipx run esphome`
+  if `esphome` isn't installed). Omit args to use the YAML's default substitutions.
+- **Run builds on tmpfs, never on this NFS share** — NFS builds intermittently drop
+  `lvgl.h` and fail partway through. Work from local/tmpfs storage (or a git worktree
+  on local disk) when compiling.
+- Hardware notes: production pucks are 1.43" CO5300 AMOLED units at `.155` / `.165`; no
+  onboard audio; P2S print-control is blocked by Bambu's signed-MQTT requirement.
 
 ## Workflow
 
